@@ -1,6 +1,7 @@
 from utils import IncomeCol, Period, Statements
 from typing import Dict, List
 import requests
+from datetime import datetime
 
 
 def dict2income(d: Dict) -> IncomeCol:
@@ -44,3 +45,12 @@ def get_financials(ticker: str, statement: Statements = Statements.Income,
 def get_ticker_list():
     url = 'https://financialmodelingprep.com/api/v3/company/stock/list'
     return requests.get(url).json()['symbolsList']  # list of dictionaries
+
+
+def get_prices(ticker: str, start: datetime, end: datetime) -> List:
+    # date format: 2018 - 03 - 12
+    start_str = start.strftime('%Y-%m-%d')
+    end_str = end.strftime('%Y-%m-%d')
+    url = f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?from={start_str}&to={end_str}'
+    resp = requests.get(url)
+    return resp.json()['historical']
