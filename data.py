@@ -3,6 +3,7 @@ from typing import Dict, List
 import requests
 from datetime import datetime
 
+DATE_FORMAT = '%Y-%m-%d'
 
 def dict2income(d: Dict) -> IncomeCol:
     return IncomeCol(
@@ -31,7 +32,7 @@ def statements2url(statement: Statements) -> str:
 
 
 def get_financials(ticker: str, statement: Statements = Statements.Income,
-                   period: Period = Period.Year) -> List:
+                   period: Period = Period.Year) -> List[IncomeCol]:
 
     url = f'https://financialmodelingprep.com/api/v3/financials/{statements2url(statement)}/{ticker}/'
     if period == Period.Quarter:
@@ -39,7 +40,9 @@ def get_financials(ticker: str, statement: Statements = Statements.Income,
 
     resp = requests.get(url)
 
-    return [dict2income(d) for d in resp.json()['financials']]
+    financial_list = [dict2income(d) for d in resp.json()['financials']]
+    financial_list.reverse()
+    return financial_list
 
 
 def get_ticker_list():
