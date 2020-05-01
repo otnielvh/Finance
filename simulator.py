@@ -25,7 +25,7 @@ def _growth_score(income_list: List[data.IncomeCol]):
             print(f'revenue is zero for {income_list[i].Date}')
         except ValueError:
             pass
-    normalized_growth_score= growth_score/ max(len(income_list) - 1, 1)
+    normalized_growth_score = growth_score/ max(len(income_list) - 1, 1)
     normalized_rnd_score = rnd_score / max(len(income_list), 1)
     return (normalized_growth_score, normalized_rnd_score)
 

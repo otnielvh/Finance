@@ -6,7 +6,7 @@ from datetime import datetime
 import simulator
 
 TICKER = 'vrtx'
-TICKER_LIST = ['payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn', 'tsla', 'sedg',
+TICKER_LIST = ['cpe', 'payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn', 'tsla', 'sedg',
                'teva', 'vrtx']
 # TICKER_LIST = ['pg', 'aig', 'rtx', 'CVX']
 INDEX_LIST = ['qqq', 'spy']
@@ -40,7 +40,7 @@ def main():
     score_list = simulator.get_growth_score(TICKER_LIST, datetime(2016, 2, 1))
     print("successfully retrieved data")
     start_date = datetime(2016, 2, 17)
-    end_date = datetime(2018, 4, 27)
+    end_date = datetime(2019, 4, 24)
 
     # compare high score stocks to lows score stocks performance
     print('ticker\tgain\t\tgross growth\tR&D/expense')
@@ -55,5 +55,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # print(data.get_cached_url('a'))
     main()
 
