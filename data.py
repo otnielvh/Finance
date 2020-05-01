@@ -56,4 +56,4 @@ def get_prices(ticker: str, start: datetime, end: datetime) -> List:
     end_str = end.strftime('%Y-%m-%d')
     url = f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?from={start_str}&to={end_str}'
     resp = requests.get(url)
-    return resp.json()['historical']
+    return resp.json().get('historical', [])

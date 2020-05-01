@@ -6,7 +6,9 @@ from datetime import datetime
 import simulator
 
 TICKER = 'vrtx'
-TICKER_LIST = ['pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn', 'tsla', 'sedg', 'teva', 'vrtx']
+TICKER_LIST = ['payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn', 'tsla', 'sedg',
+               'teva', 'vrtx']
+# TICKER_LIST = ['pg', 'aig', 'rtx', 'CVX']
 INDEX_LIST = ['qqq', 'spy']
 PERIOD = Period.Year
 
@@ -35,19 +37,23 @@ def main():
 
     # pp.pprint(simulator.remove_dates_newer_than_today(data.get_financials(TICKER), datetime(2016, 4, 25)))
 
-    score_list = simulator.get_growth_score(TICKER_LIST, datetime(2017, 1, 1))
-    start_date = datetime(2017, 2, 13)
+    score_list = simulator.get_growth_score(TICKER_LIST, datetime(2016, 2, 1))
+    print("successfully retrieved data")
+    start_date = datetime(2016, 2, 17)
     end_date = datetime(2018, 4, 27)
 
     # compare high score stocks to lows score stocks performance
-    print('ticker\tscore\tgain')
+    print('ticker\tgain\t\tgross growth\tR&D/expense')
     for ticker, score in score_list:
         gain = simulator.gain_from_buy_and_sell(ticker, start_date, end_date)
-        print(f'{ticker:>4}\t{score:.2f}\t{gain*100:.2f}%')
+        print(f'{ticker:>4}\t{gain*100:.2f}%\t\t\t{score[0]:.2f}\t\t{score[1]:.2f}')
 
     # Index gains
     for ticker in INDEX_LIST:
         gain = simulator.gain_from_buy_and_sell(ticker, start_date, end_date)
-        print(f'{ticker:>4}\t\t\t{gain*100:.2f}%')
+        print(f'{ticker:>4}\t{gain*100:.2f}%')
 
-main()
+
+if __name__ == "__main__":
+    main()
+
