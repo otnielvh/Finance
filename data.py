@@ -1,14 +1,15 @@
-from utils import IncomeCol, Period, Statements
+from utils import Income, BalanceSheet, CashFlow, KeyMetrics, Period, Statements
 from typing import Dict, List
 import requests
 from datetime import datetime
 import redis
 import json
+import csv
 
 DATE_FORMAT = '%Y-%m-%d'
 REDIS_HOST_NAME = 'localhost'
 REDIS_PORT = 6379
-
+SYMBOLS_PATH = 'nasdaq_symbols.csv'
 
 r = redis.Redis(
     host=REDIS_HOST_NAME,
@@ -34,8 +35,8 @@ def get_cached_url(url) -> Dict:
     return resp
 
 
-def dict2income(d: Dict) -> IncomeCol:
-    return IncomeCol(
+def dict2income(d: Dict) -> Income:
+    return Income(
         Date=d.get('date'),
         Revenue=d.get('Revenue'),
         CostOfRevenue=d.get('Cost of Revenue'),
@@ -51,6 +52,18 @@ def dict2income(d: Dict) -> IncomeCol:
     )
 
 
+def dict2balance_sheet(d: Dict) -> BalanceSheet:
+    return BalanceSheet(
+        Date=d.get('date'),
+    )
+
+
+def dict2cash_flow(d: Dict) -> CashFlow:
+    return CashFlow(
+        Date=d.get('date'),
+    )
+
+
 def statements2url(statement: Statements) -> str:
     d = {
         Statements.Income: 'income-statement',
@@ -61,7 +74,7 @@ def statements2url(statement: Statements) -> str:
 
 
 def get_financials(ticker: str, statement: Statements = Statements.Income,
-                   period: Period = Period.Year) -> List[IncomeCol]:
+                   period: Period = Period.Year) -> List[Income]:
 
     url = f'https://financialmodelingprep.com/api/v3/financials/{statements2url(statement)}/{ticker}/'
     if period == Period.Quarter:
@@ -86,3 +99,16 @@ def get_prices(ticker: str, start: datetime, end: datetime) -> List:
     url = f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?from={start_str}&to={end_str}'
     resp = get_cached_url(url)
     return resp.get('historical', [])
+
+
+def get_symbols():
+    symbols = []
+    nasdaq_symbol_pos = -1
+    etf_pos = 4
+    with open(SYMBOLS_PATH) as csvfile:
+        reader = csv.reader(csvfile, delimiter='|')
+        next(reader)
+        for row in reader:
+            if row[etf_pos] == "N":  # not an ETF
+                symbols.append(row[nasdaq_symbol_pos])
+    return symbols

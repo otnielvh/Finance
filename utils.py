@@ -13,9 +13,12 @@ class Statements(Enum):
     CashFlow = 3
 
 
-IncomeCol = namedtuple('IncomeCol', ['Date', 'Revenue', 'CostOfRevenue', 'GrossProfit', 'RnDExpenses',
+Income = namedtuple('Income', ['Date', 'Revenue', 'CostOfRevenue', 'GrossProfit', 'RnDExpenses',
                                      'SGAExpense', 'OperatingExpenses', 'OperatingIncome', 'InterestExpense',
                                      'NetIncome', 'EBITDA', 'EBIT'])
 
+BalanceSheet = namedtuple('BalanceSheet', ['Date'])
 
+CashFlow = namedtuple('CashFlow', ['Date'])
 
+KeyMetrics = namedtuple('KeyMetrics', ['Date', 'MarketCap', 'Dividend'])
