@@ -17,7 +17,15 @@ Income = namedtuple('Income', ['Date', 'Revenue', 'CostOfRevenue', 'GrossProfit'
                                      'SGAExpense', 'OperatingExpenses', 'OperatingIncome', 'InterestExpense',
                                      'NetIncome', 'EBITDA', 'EBIT'])
 
-BalanceSheet = namedtuple('BalanceSheet', ['Date'])
+BalanceSheet = namedtuple('BalanceSheet',
+                          ['Date', 'CashAndCashEquivalents', 'ShortTermInvestments', 'Receivables', 'Inventories'
+                           'TotalCurrentAssets', 'PropertyPlantAndEquipmentNet', 'GoodwillAndIntangibleAssets',
+                           'LongTermInvestments', 'TaxAssets', 'TotalNonCurrentAssets', 'TotalAssets', 'Payables',
+                           'ShortTermDebt', 'TotalDebt', 'DeferredRevenue', 'TaxLiabilities', 'DepositLiabilities',
+                           'TotalNonCurrentLiabilities', 'TotalLiabilities', 'OtherComprehensiveIncome',
+                           'RetainedEarnings', 'TotalShareholdersEquity', 'Investments', 'NetDebt', 'OtherAssets',
+                           'OtherLiabilities', 'TotalCurrentLiabilities', 'CashAndShortTermInvestments'])
+
 
 CashFlow = namedtuple('CashFlow', ['Date'])
 

@@ -55,12 +55,44 @@ def dict2income(d: Dict) -> Income:
 def dict2balance_sheet(d: Dict) -> BalanceSheet:
     return BalanceSheet(
         Date=d.get('date'),
+        CashAndCashEquivalents=d.get('Cash and cash equivalents'),
+        ShortTermInvestments=d.get('Short-term investments'),
+        Receivables=d.get('Receivables'),
+        # Inventories=d.get('Inventories', ''),
+        # TotalCurrentAssets=d.get('Total current assets'),
+        PropertyPlantAndEquipmentNet=d.get('Property, Plant & Equipment Net'),
+        GoodwillAndIntangibleAssets=d.get('Goodwill and Intangible Assets'),
+        LongTermInvestments=d.get('Long-term investments'),
+        TaxAssets=d.get('Tax assets'),
+        TotalNonCurrentAssets=d.get('Total non-current assets'),
+        TotalAssets=d.get('Total assets'),
+        Payables=d.get('Payables'),
+        ShortTermDebt=d.get('Short-term debt'),
+        # LongTermDebt=d.get('Long-term debt'),
+        TotalDebt=d.get('Total debt'),
+        DeferredRevenue=d.get('Deferred revenue'),
+        TaxLiabilities=d.get('Tax Liabilities'),
+        DepositLiabilities=d.get('Deposit Liabilities'),
+        TotalNonCurrentLiabilities=d.get('Total non-current liabilities'),
+        TotalLiabilities=d.get('Total liabilities'),
+        OtherComprehensiveIncome=d.get('Other comprehensive income'),
+        RetainedEarnings=d.get('Retained earnings (deficit)'),
+        TotalShareholdersEquity=d.get('Total shareholders equity'),
+        Investments=d.get('Investments'),
+        NetDebt=d.get('Net Debt'),
+        OtherAssets=d.get('Other Assets'),
+        OtherLiabilities=d.get('Other Liabilities'),
+        TotalCurrentLiabilities=d.get('Total current liabilities'),
+        CashAndShortTermInvestments=d.get('Cash and short-term investments'),
+        InventoriesTotalCurrentAssets='',
     )
+
 
 
 def dict2cash_flow(d: Dict) -> CashFlow:
     return CashFlow(
         Date=d.get('date'),
+        #TODO: fill in
     )
 
 
@@ -81,8 +113,14 @@ def get_financials(ticker: str, statement: Statements = Statements.Income,
         url += '?period=quarter'
 
     resp = get_cached_url(url)
+    financial_list = []
+    if statement == Statements.Income:
+        financial_list = [dict2income(d) for d in resp['financials']]
+    elif statement == Statements.BalanceSheet:
+        financial_list = [dict2balance_sheet(d) for d in resp['financials']]
+    elif statement == Statements.CashFlow:
+        financial_list = [dict2cash_flow(d) for d in resp['financials']]
 
-    financial_list = [dict2income(d) for d in resp['financials']]
     financial_list.reverse()
     return financial_list
 
