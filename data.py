@@ -15,6 +15,14 @@ r = redis.Redis(
     host=REDIS_HOST_NAME,
     port=REDIS_PORT)
 
+# SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
+#                              'NYSEArca', 'Nasdaq', 'Nasdaq Global Select', 'NasdaqCM', 'NasdaqGM', 'NasdaqGS',
+#                              'New York Stock Exchange']
+
+SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
+                             'NYSEArca', 'Nasdaq', 'Nasdaq Global Select', 'NasdaqGM', 'NasdaqGS',
+                             'New York Stock Exchange']
+
 
 def get_cached_url(url) -> Dict:
     """ Get URL from cache. If URL not in cache, get from source url and cache the response """
@@ -88,7 +96,6 @@ def dict2balance_sheet(d: Dict) -> BalanceSheet:
     )
 
 
-
 def dict2cash_flow(d: Dict) -> CashFlow:
     return CashFlow(
         Date=d.get('date'),
@@ -125,9 +132,16 @@ def get_financials(ticker: str, statement: Statements = Statements.Income,
     return financial_list
 
 
-def get_ticker_list():
+def get_ticker_list() -> List[str]:
     url = 'https://financialmodelingprep.com/api/v3/company/stock/list'
-    return requests.get(url).json()['symbolsList']  # list of dictionaries
+    ticker_list = []
+    for x in get_cached_url(url)['symbolsList']:
+        if x.get('exchange', None) in SUPPORTED_STOCK_EXCHANGES:
+            name = x.get('name', '').lower()
+            if name and 'fund' not in name and 'etf' not in name:
+                ticker_list.append(x.get('symbol'))
+    print(f'Number of supported stocks: {len(ticker_list)}')
+    return ticker_list
 
 
 def get_prices(ticker: str, start: datetime, end: datetime) -> List:
