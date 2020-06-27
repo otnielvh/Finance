@@ -5,15 +5,18 @@ from datetime import datetime
 import redis
 import json
 import csv
+from config import API_KEY
 
 DATE_FORMAT = '%Y-%m-%d'
 REDIS_HOST_NAME = 'localhost'
 REDIS_PORT = 6379
 SYMBOLS_PATH = 'nasdaq_symbols.csv'
-
+BASE_URL_V3 = 'https://financialmodelingprep.com/api/v3'
 r = redis.Redis(
     host=REDIS_HOST_NAME,
     port=REDIS_PORT)
+
+
 
 # SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
 #                              'NYSEArca', 'Nasdaq', 'Nasdaq Global Select', 'NasdaqCM', 'NasdaqGM', 'NasdaqGS',
@@ -115,9 +118,9 @@ def statements2url(statement: Statements) -> str:
 def get_financials(ticker: str, statement: Statements = Statements.Income,
                    period: Period = Period.Year) -> List[Income]:
 
-    url = f'https://financialmodelingprep.com/api/v3/financials/{statements2url(statement)}/{ticker}/'
+    url = f'{BASE_URL_V3}/financials/{statements2url(statement)}/{ticker}/?apikey={API_KEY}'
     if period == Period.Quarter:
-        url += '?period=quarter'
+        url += '&period=quarter'
 
     resp = get_cached_url(url)
     financial_list = []
@@ -133,7 +136,7 @@ def get_financials(ticker: str, statement: Statements = Statements.Income,
 
 
 def get_ticker_list() -> List[str]:
-    url = 'https://financialmodelingprep.com/api/v3/company/stock/list'
+    url = f'{BASE_URL_V3}/company/stock/list?apikey={API_KEY}'
     ticker_list = []
     for x in get_cached_url(url)['symbolsList']:
         if x.get('exchange', None) in SUPPORTED_STOCK_EXCHANGES:
@@ -148,7 +151,7 @@ def get_prices(ticker: str, start: datetime, end: datetime) -> List:
     # date format: 2018 - 03 - 12
     start_str = start.strftime('%Y-%m-%d')
     end_str = end.strftime('%Y-%m-%d')
-    url = f'https://financialmodelingprep.com/api/v3/historical-price-full/{ticker}?from={start_str}&to={end_str}'
+    url = f'{BASE_URL_V3}/historical-price-full/{ticker}?from={start_str}&to={end_str}&apikey={API_KEY}'
     resp = get_cached_url(url)
     return resp.get('historical', [])
 

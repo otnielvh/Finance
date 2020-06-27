@@ -8,3 +8,6 @@ and how much money (revenue, gross profit, income etc.) it can generate in the f
 The first stage of this project is a simulator for testing investment strategies.
 The user can filter out stocks based on specific parameters and see how these stocks 
 performed compared to the Nasdaq (QQQ) and S&P 500 (SPY).
+
+# API KEY
+For a successful run you will need to change the API key in `config.py` to your real api key.
