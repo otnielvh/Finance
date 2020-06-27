@@ -6,7 +6,7 @@ import pprint as pp
 
 TICKER_LIST = ['cpe', 'payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn',
                'tsla', 'sedg', 'now', 'teva', 'vrtx', 'PFG', 'RCL', 'HAL', 'NVS', 'LIN', 'c', 'rtx']
-# TICKER_LIST = ['aapl', 'amzn']
+
 INDEX_LIST = ['qqq', 'spy']
 PERIOD = Period.Year
 
@@ -31,17 +31,30 @@ def main():
     print("successfully retrieved data")
 
     # compare high score stocks to lows score stocks performance
-    print('ticker\tgain\t\tgross growth\tR&D/expense\tcash/debt\tnetIncome')
+    title = 'ticker\tgain\t\t'
+    for name in algo_score.score_list[0]._asdict().keys():
+        if name != 'ticker':
+            title += f'{name}\t\t'
+    print(title)
+
     sum_gain = 0
-    for row in algo_score.score_list:
-        ticker = row[0]
+    for scoreEntry in algo_score.score_list:
+        ticker = scoreEntry.ticker
         try:
             gain = gain_from_buy_and_sell(ticker, BUY_DATE, SELL_DATE)
             sum_gain += gain
-            print(f'{ticker:>4}\t{gain*100:>7.2f}%\t\t\t{row[1]:.2f}\t\t{row[2]:.2f}\t\t{row[3]:.2f}\t\t{row[4]:>8.0f}'
-                  f'\t\t{row[5]*100:>7.2f}%'
-                  f'\t\t{row[6]}')
-            # print(row, gain)
+            scoreLine = f'{ticker:>4}\t{gain*100:>7.2f}%\t\t'
+            for name, value in scoreEntry._asdict().items():
+                if name != 'ticker':
+                    if value < 10 ** 3:
+                        scoreLine += f'{value:6.2f}  \t\t'
+                    elif value < 10 ** 6:
+                        scoreLine += f'{value/(10 ** 3):6.0f}K\t\t'
+                    elif value < 10 ** 9:
+                        scoreLine += f'{value/(10 ** 6):6.0f}M\t\t'
+                    else:
+                        scoreLine += f'{value/(10 ** 9):6.0f}B\t\t'
+            print(scoreLine)
         except Exception as e:
             print(f'Error handling {ticker!r}: {e}')
     # Index gains

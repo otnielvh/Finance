@@ -8,10 +8,14 @@ class Period(Enum):
 
 
 class Statements(Enum):
-    Income = 1
-    BalanceSheet = 2
-    CashFlow = 3
+    Profile = 1
+    Income = 2
+    BalanceSheet = 3
+    CashFlow = 4
+    KeyMetrics = 5
 
+
+Profile = namedtuple('Profile', ['mktCap', 'lastDiv', 'country', 'industry'])
 
 Income = namedtuple('Income', ['Date', 'Revenue', 'CostOfRevenue', 'GrossProfit', 'RnDExpenses',
                                      'SGAExpense', 'OperatingExpenses', 'OperatingIncome', 'InterestExpense',
@@ -30,3 +34,5 @@ BalanceSheet = namedtuple('BalanceSheet',
 CashFlow = namedtuple('CashFlow', ['Date'])
 
 KeyMetrics = namedtuple('KeyMetrics', ['Date', 'MarketCap', 'Dividend'])
+
+TickerData = namedtuple('TickerData', ['profile', 'income_list', 'balance_sheet_list', 'cash_flow_list'])

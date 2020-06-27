@@ -1,4 +1,4 @@
-from utils import Income, BalanceSheet, CashFlow, KeyMetrics, Period, Statements
+from utils import *
 from typing import Dict, List
 import requests
 from datetime import datetime
@@ -17,12 +17,7 @@ r = redis.Redis(
     port=REDIS_PORT)
 
 
-
-# SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
-#                              'NYSEArca', 'Nasdaq', 'Nasdaq Global Select', 'NasdaqCM', 'NasdaqGM', 'NasdaqGS',
-#                              'New York Stock Exchange']
-
-SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
+SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
                              'NYSEArca', 'Nasdaq', 'Nasdaq Global Select', 'NasdaqGM', 'NasdaqGS',
                              'New York Stock Exchange']
 
@@ -44,6 +39,15 @@ def get_cached_url(url) -> Dict:
         pass
 
     return resp
+
+
+def dict2profile(d: Dict) -> Profile:
+    return Profile(
+        mktCap=d.get('mktCap'),
+        lastDiv=d.get('lastDiv'),
+        country=d.get('country'),
+        industry=d.get('industry')
+    )
 
 
 def dict2income(d: Dict) -> Income:
@@ -106,11 +110,12 @@ def dict2cash_flow(d: Dict) -> CashFlow:
     )
 
 
-def statements2url(statement: Statements) -> str:
+def getUrl(statement: Statements) -> str:
     d = {
-        Statements.Income: 'income-statement',
-        Statements.BalanceSheet: 'balance-sheet-statement',
-        Statements.CashFlow: 'cash-flow-statement'
+        Statements.Profile: 'profile',
+        Statements.Income: 'financials/income-statement',
+        Statements.BalanceSheet: 'financials/balance-sheet-statement',
+        Statements.CashFlow: 'financials/cash-flow-statement'
     }
     return d[statement]
 
@@ -118,12 +123,15 @@ def statements2url(statement: Statements) -> str:
 def get_financials(ticker: str, statement: Statements = Statements.Income,
                    period: Period = Period.Year) -> List[Income]:
 
-    url = f'{BASE_URL_V3}/financials/{statements2url(statement)}/{ticker}/?apikey={API_KEY}'
+    url = f'{BASE_URL_V3}/{getUrl(statement)}/{ticker}/?apikey={API_KEY}'
+
     if period == Period.Quarter:
         url += '&period=quarter'
 
     resp = get_cached_url(url)
     financial_list = []
+    if statement == Statements.Profile:
+        financial_list = dict2profile(resp[0])
     if statement == Statements.Income:
         financial_list = [dict2income(d) for d in resp['financials']]
     elif statement == Statements.BalanceSheet:
@@ -131,7 +139,8 @@ def get_financials(ticker: str, statement: Statements = Statements.Income,
     elif statement == Statements.CashFlow:
         financial_list = [dict2cash_flow(d) for d in resp['financials']]
 
-    financial_list.reverse()
+    if statement != Statements.Profile:
+        financial_list.reverse()
     return financial_list
 
 
