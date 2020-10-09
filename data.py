@@ -2,6 +2,7 @@ from utils import *
 from typing import Dict, List
 import requests
 from datetime import datetime
+import time
 import redis
 import json
 import csv
@@ -25,20 +26,32 @@ SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'N
 def get_cached_url(url) -> Dict:
     """ Get URL from cache. If URL not in cache, get from source url and cache the response """
     try:
-        resp = r.get(url)
-        if resp is not None:
-            return json.loads(resp)
+        redis_resp = r.get(url)
+        if redis_resp is not None:
+            return json.loads(redis_resp)
     except redis.exceptions.ConnectionError:
         pass
 
-    resp = requests.get(url).json()
+    resp = requests.get(url)
+
+    counter = 0
+    while resp.status_code == 429:
+        seconds = resp.json().get('X-Rate-Limit-Retry-After-Seconds', 0) + 1
+        print(f'received 429: sleeping for {seconds} for the {counter}th time')
+        time.sleep(seconds)
+        resp = requests.get(url)
+        counter += 1
+
+    resp.raise_for_status()
+
+    data = resp.json()
 
     try:
-        r.set(url, json.dumps(resp))
+        r.set(url, json.dumps(data))
     except redis.exceptions.ConnectionError:
         pass
 
-    return resp
+    return data
 
 
 def dict2profile(d: Dict) -> Profile:
