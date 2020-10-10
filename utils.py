@@ -11,28 +11,27 @@ class Statements(Enum):
     Profile = 1
     Income = 2
     BalanceSheet = 3
-    CashFlow = 4
-    KeyMetrics = 5
+    # CashFlow = 4
+    # KeyMetrics = 5
 
 
-Profile = namedtuple('Profile', ['mktCap', 'lastDiv', 'country', 'industry'])
+Profile = namedtuple('Profile', ['mktCap', 'lastDiv', 'country', 'industry', 'currency', 'exchange'])
 
 Income = namedtuple('Income', ['Date', 'Revenue', 'CostOfRevenue', 'GrossProfit', 'RnDExpenses',
-                                     'SGAExpense', 'OperatingExpenses', 'OperatingIncome', 'InterestExpense',
-                                     'NetIncome', 'EBITDA', 'EBIT'])
+                               'GAExpense', 'SaMExpense', 'OperatingExpenses',
+                               'OperatingIncome', 'InterestExpense',
+                               'NetIncome', 'EBITDA', 'EBITratio'])
 
 BalanceSheet = namedtuple('BalanceSheet',
-                          ['Date', 'CashAndCashEquivalents', 'ShortTermInvestments', 'Receivables', 'Inventories'
-                           'TotalCurrentAssets', 'PropertyPlantAndEquipmentNet', 'GoodwillAndIntangibleAssets',
+                          ['Date', 'CashAndCashEquivalents', 'ShortTermInvestments', 'Receivables',
+                           'PropertyPlantAndEquipmentNet', 'GoodwillAndIntangibleAssets',
                            'LongTermInvestments', 'TaxAssets', 'TotalNonCurrentAssets', 'TotalAssets', 'Payables',
-                           'ShortTermDebt', 'TotalDebt', 'DeferredRevenue', 'TaxLiabilities', 'DepositLiabilities',
-                           'TotalNonCurrentLiabilities', 'TotalLiabilities', 'OtherComprehensiveIncome',
-                           'RetainedEarnings', 'TotalShareholdersEquity', 'Investments', 'NetDebt', 'OtherAssets',
-                           'OtherLiabilities', 'TotalCurrentLiabilities', 'CashAndShortTermInvestments'])
+                           'ShortTermDebt', 'TotalDebt', 'TotalLiabilities',
+                           'DeferredRevenue', 'NetDebt'])
 
 
-CashFlow = namedtuple('CashFlow', ['Date'])
+# CashFlow = namedtuple('CashFlow', ['Date'])
 
-KeyMetrics = namedtuple('KeyMetrics', ['Date', 'MarketCap', 'Dividend'])
+# KeyMetrics = namedtuple('KeyMetrics', ['Date', 'MarketCap', 'Dividend'])
 
-TickerData = namedtuple('TickerData', ['profile', 'income_list', 'balance_sheet_list', 'cash_flow_list'])
+TickerData = namedtuple('TickerData', ['profile', 'income_list', 'balance_sheet_list'])
