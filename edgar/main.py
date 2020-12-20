@@ -2,6 +2,8 @@ import bs4 as bs
 import requests
 from edgar import balance_sheet
 
+SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
+
 
 def main():
     company = 'Facebook Inc'
@@ -9,42 +11,43 @@ def main():
     year = 2020
     quarter = 'QTR3'
     # get name of all filings
-    download = requests.get(
-        f'https://www.sec.gov/Archives/edgar/full-index/{year}/{quarter}/master.idx').content
-    download = download.decode("utf-8").split('\n')
-    # print(download)
+    download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
+    decoded_download = download.decode("utf-8").split('\n')
 
-    for item in download:
+    txt_url = None
+    for item in decoded_download:
         # company name and report type
         if (company in item) and (filing in item):
             # print(item)
             company = item
             company = company.strip()
             splitted_company = company.split('|')
-            url = splitted_company[-1]
+            txt_url = splitted_company[-1]
 
-    print(url)  # edgar/data/1326801/0001326801-20-000076.txt
+    if not txt_url:
+        exit(1)
 
-    url2 = url.split('-')
-    url2 = url2[0] + url2[1] + url2[2]
-    url2 = url2.split('.txt')[0]
-    print(url2)  # edgar/data/1326801/000132680120000076
+    print(txt_url)  # edgar/data/1326801/0001326801-20-000076.txt
 
-    to_get_html_site = 'https://www.sec.gov/Archives/' + url
+    data_url = txt_url.replace('-', '')
+    data_url = data_url.split('.txt')[0]
+    print(data_url)  # edgar/data/1326801/000132680120000076
+
+    to_get_html_site = f'{SEC_ARCHIVE_URL}/{txt_url}'
     data = requests.get(to_get_html_site).content
     data = data.decode("utf-8")
     data = data.split('FILENAME>')
     # data[1]
     data = data[1].split('\n')[0]
 
-    url_to_use = 'https://www.sec.gov/Archives/' + url2 + '/'+data
+    url_to_use = f'{SEC_ARCHIVE_URL}/{data_url}/{data}'
     print(url_to_use)
 
     resp = requests.get(url_to_use)
     soup = bs.BeautifulSoup(resp.text, 'lxml')
 
     # print(soup)
-    balance_sheet.balance_Sheet(soup, 2020, quarter)
+    balance_sheet.balance_sheet(soup)
 
 
 if __name__ == "__main__":

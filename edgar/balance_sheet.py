@@ -1,47 +1,27 @@
+from typing import List
+from bs4 import BeautifulSoup
+
+BALANCE_SHEET_KEY_WORDS = [
+    'dei:TradingSymbol',
+    # dei:CurrentFiscalYearEndDate
+    'us-gaap:Liabilities',
+    'us-gaap:NoncurrentAssets',
+    'us-gaap:CostOfRevenue',
+    'us-gaap:GeneralAndAdministrativeExpense',
+    'us-gaap:OperatingIncomeLoss',
+    'us-gaap:NetIncomeLoss',
+]
 
 
-def balance_Sheet(soup, year, quarter):
-    table = soup.find(text="Current assets:").find_parent("table")
-    items = []
-    values = []
+def balance_sheet(soup: BeautifulSoup) -> List[List[str]]:
 
-    dict_value = {}
-    dict_value[str(year) + quarter] = {}
-    name_key = 0
+    tag_list = soup.find_all("ix:nonfraction")
 
-    for row in table.findAll('tr')[3:]:
-        # 1 Get name of the Table Row Index
-        try:
-            item = row.find("ix:nonfraction").attrs['name']
-            item = item.replace('us-gaap:', '')
-        except:
-            continue
-        # 2 Get value and transform the number to an appropiate format
-        try:
-            value = row.find("ix:nonfraction").text
+    filtered_list = []
+    for tag in tag_list:
+        if tag.get('name') in BALANCE_SHEET_KEY_WORDS:
+            filtered_list.append([tag.get('contextref'), tag.get('name'), tag.text, tag.get('unitref')])
+    for line in filtered_list:
+        print(line)
+    return filtered_list
 
-            try:
-                value = value.replace(',', '')
-            except:
-
-                value
-            try:
-                value = value.replace('(', '-')
-            except:
-
-                value
-            try:
-                # if there is a sign, we need to add it
-                sign = row.find("ix:nonfraction")["sign"]
-                value = sign + value
-            except:
-                value
-            try:
-                value = float(value)
-            except:
-                print(value + ' 5')
-        except:
-            value = ''
-        # 3 Add elements to dictionaries
-        dict_value[str(year) + quarter][item] = value
-    print(dict_value)
