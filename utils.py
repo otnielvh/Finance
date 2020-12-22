@@ -35,3 +35,7 @@ BalanceSheet = namedtuple('BalanceSheet',
 # KeyMetrics = namedtuple('KeyMetrics', ['Date', 'MarketCap', 'Dividend'])
 
 TickerData = namedtuple('TickerData', ['profile', 'income_list', 'balance_sheet_list'])
+
+
+def redis_key(name: str, year: int):
+    return f'{name.replace(" ", "-")}:{year}'

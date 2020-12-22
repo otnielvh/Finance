@@ -1,49 +1,47 @@
 from typing import List
 from bs4 import BeautifulSoup
+import redis
+import utils
+from common import config
 
-GAAP_KEY_WORDS = [
-    'dei:TradingSymbol',
-    # dei:CurrentFiscalYearEndDate
-    'us-gaap:liabilities',
-    'us-gaap:noncurrentassets',
-    'us-gaap:costofrevenue',
-    'us-gaap:generalandadministrativeexpense',
-    'us-gaap:operatingincomeloss',
-    'us-gaap:netincomeloss',
-    'us-gaap:grossprofit',
-    'us-gaap:researchanddevelopmentexpense',
-    'us-gaap:revenues',
-    'us-gaap:operatingexpenses',
-]
+redis_client = redis.Redis(
+    host=config.REDIS_HOST_NAME,
+    port=config.REDIS_PORT)
 
-DEI_KEY_WORDS = [
+KEY_WORDS = [
+    # general
     'dei:tradingsymbol',
+
+    # income statement
+    'us-gaap:revenues',
+    'us-gaap:costofrevenue',
+    'us-gaap:grossprofit',
+
+    'us-gaap:generalandadministrativeexpense',
+    'us-gaap:researchanddevelopmentexpense',
+    'us-gaap:operatingexpenses',
+    'us-gaap:operatingincomeloss',
+
+    # Balance sheet
+    'us-gaap:netincomeloss',
+
+    'us-gaap:noncurrentassets',
+
+    'us-gaap:liabilities',
 ]
 
 
-def getFinancialData(soup: BeautifulSoup) -> List[List[str]]:
-    filtered_list = getData(soup, "ix:nonfraction", GAAP_KEY_WORDS)
-    filtered_list += (getData(soup, "ix:nonnumeric", DEI_KEY_WORDS))
-    print(filtered_list)
-    return filtered_list
+def getFinancialData(soup: BeautifulSoup, company: str, year: int, keywords: List[str] = None) -> List[List[str]]:
+    if keywords is None:
+        keywords = KEY_WORDS
 
-
-# def getData(soup: BeautifulSoup, searchString: str, keywords: []) -> List[List[str]]:
-#     tag_list = soup.find_all(searchString)
-
-#     filtered_list = []
-#     for tag in tag_list:
-#         if tag.get('name') in keywords:
-#             filtered_list.append([tag.get('contextref'), tag.get(
-#                 'name'), tag.text, tag.get('unitref')])
-#     return filtered_list
-
-
-def getData(soup: BeautifulSoup, searchString: str, keywords: []) -> List[List[str]]:
     filtered_list = []
+    hash_key = dict()
     for key in keywords:
         tag_list = soup.find_all(key)
         for tag in tag_list:
-            filtered_list.append([key, tag.get('contextref'), tag.get(
-                'name'), tag.text, tag.get('unitref')])
+            filtered_list.append([key, tag.get('contextref'), tag.get('name'), tag.text, tag.get('unitref')])
+            hash_key[key] = str(tag.text)
+    redis_client.hset(utils.redis_key(company, year), mapping=hash_key)
+    print(f'successfully retrieved "{utils.redis_key(company, year)}" data from sec')
     return filtered_list

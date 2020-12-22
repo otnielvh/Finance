@@ -2,54 +2,49 @@ import financial_data
 import requests
 import argparse
 import bs4 as bs
-import os
+import redis
+from common import config
+import utils
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
+redis_client = redis.Redis(
+    host=config.REDIS_HOST_NAME,
+    port=config.REDIS_PORT)
 
-def fetchCompanyData(companyItem):
-    company = companyItem
-    company = company.strip()
-    splitted_company = company.split('|')
+
+def fetchCompanyData(company_line, year):
+    company_line = company_line.strip()
+    splitted_company = company_line.split('|')
     txt_url = splitted_company[-1]
+    company_name = splitted_company[1]
+
+    try:
+        if redis_client.exists(utils.redis_key(company_name, year)):
+            print(f'returning cached data for "{utils.redis_key(company_name, year)}"')
+            return redis_client.hgetall(utils.redis_key(company_name, year))
+    except redis.exceptions.ConnectionError:
+        print("Redis isn't running")
+        raise ConnectionRefusedError("Redis isn't running")
 
     if not txt_url:
         return
 
-    print(txt_url)  # edgar/data/1326801/0001326801-20-000076.txt
-
-    data_url = txt_url.replace('-', '')
-    data_url = data_url.split('.txt')[0]
-    print(data_url)  # edgar/data/1326801/000132680120000076
-
     to_get_html_site = f'{SEC_ARCHIVE_URL}/{txt_url}'
     data = requests.get(to_get_html_site).content
-    # data = data.decode("utf-8")
-    # data = data.split('FILENAME>')
-    # data[1]
-    # data = data[1].split('\n')[0]
-
-    # url_to_use = f'{SEC_ARCHIVE_URL}/{data_url}/{data}'
-    # print(url_to_use)
-
-    # resp = requests.get(url_to_use)
-    # soup = bs.BeautifulSoup(resp.text, 'lxml')
 
     soup = bs.BeautifulSoup(data, 'lxml')
-
-    # print(soup)
-    financial_data.getFinancialData(soup)
+    financial_data.getFinancialData(soup, company_name, year)
 
 
 def prepareIndex(year, quarter):
     filing = '10-Q'
-    download = requests.get(
-        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
+    download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
     decoded = download.decode("utf-8").split('\n')
 
     idx = []
     for item in decoded:
-        if (filing in item):
+        if filing in item:
             idx.append(item)
     return idx
 
@@ -68,29 +63,20 @@ def fetchYear(year):
             for item in idx:
                 f.write("%s\n" % item)
 
-    txt_url = None
     for item in idx:
-        fetchCompanyData(item)
+        fetchCompanyData(item, year)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("yearStart",
-                        type=int,
-                        help='''
-    The year from we want to start scraping
-                        ''')
-    parser.add_argument("yearEnd",
-                        type=int,
-                        help='''
-    The year on which we will stop scraping
-                        ''')
+    parser.add_argument("yearStart", type=int, help="The year from we want to start scraping")
+    parser.add_argument("yearEnd", type=int, help="The year on which we will stop scraping")
     args = parser.parse_args()
     # Startup parameters
-    yearStart = args.yearStart
-    yearEnd = args.yearEnd
+    year_start = args.yearStart
+    year_end = args.yearEnd
 
-    for year in range(yearStart, yearEnd):
+    for year in range(year_start, year_end):
         fetchYear(year)
 
 

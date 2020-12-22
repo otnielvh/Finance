@@ -6,16 +6,15 @@ import time
 import redis
 import json
 import csv
-from config import API_KEY
+from common import config
 
+API_KEY = 'Demo'
 DATE_FORMAT = '%Y-%m-%d'
-REDIS_HOST_NAME = 'localhost'
-REDIS_PORT = 6379
 SYMBOLS_PATH = 'nasdaq_symbols.csv'
 BASE_URL_V3 = 'https://financialmodelingprep.com/api/v3'
 r = redis.Redis(
-    host=REDIS_HOST_NAME,
-    port=REDIS_PORT)
+    host=config.REDIS_HOST_NAME,
+    port=config.REDIS_PORT)
 
 
 SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
