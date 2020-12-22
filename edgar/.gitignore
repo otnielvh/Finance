@@ -1,0 +1,5 @@
+*.pyc
+
+#ignore the index files
+*.idx
+
