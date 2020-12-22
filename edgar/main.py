@@ -1,31 +1,20 @@
-import bs4 as bs
+import financial_data
 import requests
-from edgar import balance_sheet
+import argparse
+import bs4 as bs
+import os
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
 
-def main():
-    company = 'Facebook Inc'
-    filing = '10-Q'
-    year = 2020
-    quarter = 'QTR3'
-    # get name of all filings
-    download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
-    decoded_download = download.decode("utf-8").split('\n')
-
-    txt_url = None
-    for item in decoded_download:
-        # company name and report type
-        if (company in item) and (filing in item):
-            # print(item)
-            company = item
-            company = company.strip()
-            splitted_company = company.split('|')
-            txt_url = splitted_company[-1]
+def fetchCompanyData(companyItem):
+    company = companyItem
+    company = company.strip()
+    splitted_company = company.split('|')
+    txt_url = splitted_company[-1]
 
     if not txt_url:
-        exit(1)
+        return
 
     print(txt_url)  # edgar/data/1326801/0001326801-20-000076.txt
 
@@ -35,19 +24,74 @@ def main():
 
     to_get_html_site = f'{SEC_ARCHIVE_URL}/{txt_url}'
     data = requests.get(to_get_html_site).content
-    data = data.decode("utf-8")
-    data = data.split('FILENAME>')
+    # data = data.decode("utf-8")
+    # data = data.split('FILENAME>')
     # data[1]
-    data = data[1].split('\n')[0]
+    # data = data[1].split('\n')[0]
 
-    url_to_use = f'{SEC_ARCHIVE_URL}/{data_url}/{data}'
-    print(url_to_use)
+    # url_to_use = f'{SEC_ARCHIVE_URL}/{data_url}/{data}'
+    # print(url_to_use)
 
-    resp = requests.get(url_to_use)
-    soup = bs.BeautifulSoup(resp.text, 'lxml')
+    # resp = requests.get(url_to_use)
+    # soup = bs.BeautifulSoup(resp.text, 'lxml')
+
+    soup = bs.BeautifulSoup(data, 'lxml')
 
     # print(soup)
-    balance_sheet.balance_sheet(soup)
+    financial_data.getFinancialData(soup)
+
+
+def prepareIndex(year, quarter):
+    filing = '10-Q'
+    download = requests.get(
+        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
+    decoded = download.decode("utf-8").split('\n')
+
+    idx = []
+    for item in decoded:
+        if (filing in item):
+            idx.append(item)
+    return idx
+
+
+def fetchYear(year):
+    quarter = 'QTR1'
+    filename = f'{year}-{quarter}-master.idx'
+
+    try:
+        idx = open(filename)
+    except IOError:
+        print("File not accessible, fetching from web")
+        # get name of all filings
+        idx = prepareIndex(year, quarter)
+        with open(filename, 'w+') as f:
+            for item in idx:
+                f.write("%s\n" % item)
+
+    txt_url = None
+    for item in idx:
+        fetchCompanyData(item)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("yearStart",
+                        type=int,
+                        help='''
+    The year from we want to start scraping
+                        ''')
+    parser.add_argument("yearEnd",
+                        type=int,
+                        help='''
+    The year on which we will stop scraping
+                        ''')
+    args = parser.parse_args()
+    # Startup parameters
+    yearStart = args.yearStart
+    yearEnd = args.yearEnd
+
+    for year in range(yearStart, yearEnd):
+        fetchYear(year)
 
 
 if __name__ == "__main__":
