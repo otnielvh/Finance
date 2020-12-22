@@ -20,21 +20,10 @@ def fetchCompanyData(companyItem):
 
     data_url = txt_url.replace('-', '')
     data_url = data_url.split('.txt')[0]
-    print(data_url)  # edgar/data/1326801/000132680120000076
 
     to_get_html_site = f'{SEC_ARCHIVE_URL}/{txt_url}'
+    print(to_get_html_site)  # edgar/data/1326801/000132680120000076
     data = requests.get(to_get_html_site).content
-    # data = data.decode("utf-8")
-    # data = data.split('FILENAME>')
-    # data[1]
-    # data = data[1].split('\n')[0]
-
-    # url_to_use = f'{SEC_ARCHIVE_URL}/{data_url}/{data}'
-    # print(url_to_use)
-
-    # resp = requests.get(url_to_use)
-    # soup = bs.BeautifulSoup(resp.text, 'lxml')
-
     soup = bs.BeautifulSoup(data, 'lxml')
 
     # print(soup)
@@ -42,20 +31,21 @@ def fetchCompanyData(companyItem):
 
 
 def prepareIndex(year, quarter):
-    filing = '10-Q'
+    filing = '10-K'
+    filter = '10-K/A'
     download = requests.get(
         f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
     decoded = download.decode("utf-8").split('\n')
 
     idx = []
     for item in decoded:
-        if (filing in item):
+        if (filing in item) and (filter not in item):
             idx.append(item)
     return idx
 
 
 def fetchYear(year):
-    quarter = 'QTR1'
+    quarter = 'QTR4'
     filename = f'{year}-{quarter}-master.idx'
 
     try:
@@ -96,3 +86,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# check companies, parsing normalization
