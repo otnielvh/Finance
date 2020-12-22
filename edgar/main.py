@@ -22,7 +22,7 @@ def fetchCompanyData(company_line, year):
     try:
         if redis_client.exists(utils.redis_key(company_name, year)):
             print(f'returning cached data for "{utils.redis_key(company_name, year)}"')
-            return redis_client.hgetall(utils.redis_key(company_name, year))
+            return redis_client.get(utils.redis_key(company_name, year))
     except redis.exceptions.ConnectionError:
         print("Redis isn't running")
         raise ConnectionRefusedError("Redis isn't running")
@@ -38,13 +38,14 @@ def fetchCompanyData(company_line, year):
 
 
 def prepareIndex(year, quarter):
-    filing = '10-Q'
+    filing = '10-k'
+    filter = '10-K/A'
     download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
     decoded = download.decode("utf-8").split('\n')
 
     idx = []
     for item in decoded:
-        if filing in item:
+        if (filing in item) and (filter not in item):
             idx.append(item)
     return idx
 
