@@ -1,8 +1,7 @@
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import redis
-import utils
-from common import config
+from common import config, utils
 from dateutil import parser
 import json
 
