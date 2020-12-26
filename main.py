@@ -1,8 +1,7 @@
-from utils import Period
+from common.utils import Period
 from datetime import datetime
 from score import ScoreExample
 import data
-import pprint as pp
 
 TICKER_LIST = ['cpe', 'payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn',
                'tsla', 'sedg', 'now', 'teva', 'vrtx', 'PFG', 'RCL', 'HAL', 'NVS', 'LIN', 'c', 'rtx']

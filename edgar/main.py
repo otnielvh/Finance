@@ -3,8 +3,7 @@ import requests
 import argparse
 import bs4 as bs
 import redis
-from common import config
-import utils
+from common import config, utils
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
@@ -52,7 +51,7 @@ def prepareIndex(year, quarter):
 
 def fetchYear(year):
     quarter = 'QTR1'
-    filename = f'{year}-{quarter}-master.idx'
+    filename = f'../assets/{year}-{quarter}-master.idx'
 
     try:
         idx = open(filename)

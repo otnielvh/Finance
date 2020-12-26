@@ -1,8 +1,8 @@
-from utils import TickerData, Statements, Period
-from typing import Tuple, List
+from common.utils import TickerData, Period
+from typing import List
 from datetime import datetime
 import data
-from utils import Statements
+from common.utils import Statements
 from operator import itemgetter
 from joblib import Parallel, delayed
 from collections import namedtuple
