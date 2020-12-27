@@ -1,8 +1,8 @@
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import redis
-import utils
 from common import config
+from common import utils
 from dateutil import parser
 import json
 
@@ -12,15 +12,25 @@ redis_client = redis.Redis(
 
 ELEMENT_LIST = [
     # general
-    'dei:tradingsymbol',
+    # 'dei:tradingsymbol',
 
     # income statement
+
+    # revenue
+    'us-gaap:salesrevenuenet'
     'us-gaap:revenues',
+    'us-gaap:costofgoodssold',
+    # revenue
+
     'us-gaap:costofrevenue',
     'us-gaap:grossprofit',
 
+    # expense
     'us-gaap:generalandadministrativeexpense',
+    'us-gaap:sellinggeneralandadministrativeexpense',
+
     'us-gaap:researchanddevelopmentexpense',
+
     'us-gaap:operatingexpenses',
     'us-gaap:operatingincomeloss',
 
@@ -29,7 +39,9 @@ ELEMENT_LIST = [
 
     'us-gaap:noncurrentassets',
 
+    # Liabilities
     'us-gaap:liabilities',
+    'us-gaap:liabilitiescurrent'
 ]
 
 
@@ -37,16 +49,36 @@ def getFinancialData(soup: BeautifulSoup, company: str, year: int, keywords: Lis
     if keywords is None:
         keywords = ELEMENT_LIST
 
+    dateFocus = soup.find("dei:documentfiscalperiodfocus")
+    if dateFocus == None:
+        return
+
+    dateFocus = soup.find(id=dateFocus['contextref'])
+
+    date_tag_list = ["xbrli:startdate",
+                     "startdate"]
+
+    startDate = retrieve_element_by_taglist(
+        dateFocus, date_tag_list)
+
+    date_tag_list = ["xbrli:enddate",
+                     "enddate"]
+
+    endDate = retrieve_element_by_taglist(
+        dateFocus, date_tag_list)
+
     filtered_list = []
     for key in keywords:
         element_list = soup.find_all(key)
         for element in element_list:
-            element_dict = parse_element(soup, element)
-            filtered_list.append(element_dict)
+            element_dict = parse_element(soup, element, startDate, endDate)
+            if element_dict:
+                filtered_list.append(element_dict)
 
     # redis_client.hset(utils.redis_key(company, year), mapping=hash_key)
     redis_client.set(utils.redis_key(company, year), json.dumps(filtered_list))
-    print(f'successfully retrieved "{utils.redis_key(company, year)}" data from sec')
+    print(
+        f'successfully retrieved "{utils.redis_key(company, year)}" data from sec')
     return filtered_list
 
 
@@ -84,7 +116,8 @@ def retrieve_from_context(soup, contextref):
 
     try:
         context = soup.find("xbrli:context", id=contextref)
-        contents = context.find("xbrldi:explicitmember").get_text().split(":")[-1].strip()
+        contents = context.find(
+            "xbrldi:explicitmember").get_text().split(":")[-1].strip()
     except:
         contents = ""
     return contents
@@ -117,7 +150,18 @@ def retrieve_unit(soup, each):
     return unit_str.strip()
 
 
-def retrieve_date(soup, each):
+def retrieve_element_by_taglist(soup, tagList) -> str:
+    element = None
+    for tag in tagList:
+        try:
+            element = parser.parse(soup.find(tag).get_text())
+            return(element)
+        except:
+            pass
+    return element
+
+
+def retrieve_date(soup, each, startDate=None, endDate=None):
     """
     Gets the reporting date by trying to chase a contextref
     to its source and extract its period, alternatively uses
@@ -133,34 +177,26 @@ def retrieve_date(soup, each):
     # Try to find a date tag within the contextref element,
     # starting with the most specific tags, and starting with
     # those for ixbrl docs as it's the most common file.
+    timeElem = soup.find(id=each['contextref'])
+
+    date_tag_list = ["xbrli:startdate",
+                     "startdate"]
+    start_date = retrieve_element_by_taglist(timeElem, date_tag_list)
+
     date_tag_list = ["xbrli:enddate",
-                     "xbrli:instant",
-                     "xbrli:period",
-                     "enddate",
-                     "instant",
-                     "period"]
+                     "enddate"]
+    end_date = retrieve_element_by_taglist(timeElem, date_tag_list)
 
-    for tag in date_tag_list:
-        try:
-            date_val = parser.parse(soup.find(id=each['contextref']).find(tag).get_text()).\
-                date().\
-                isoformat()
-            return(date_val)
-        except:
-            pass
+    if endDate != None:
+        if start_date == startDate and end_date == endDate:
+            end_date = endDate.date().isoformat()
+        else:
+            end_date = None
 
-    try:
-        date_val = parser.parse(each.attrs['contextref']).\
-            date().\
-            isoformat()
-        return(date_val)
-    except:
-        pass
-
-    return("NA")
+    return(end_date)
 
 
-def parse_element(soup, element) -> Dict:
+def parse_element(soup, element, startDate, endDate) -> Dict:
     """
     For a discovered XBRL tagged element, go through, retrieve its name
     and value and associated metadata.
@@ -170,10 +206,20 @@ def parse_element(soup, element) -> Dict:
     element -- soup object of discovered tagged element
     """
 
+    # no context so we can't extract data
     if "contextref" not in element.attrs:
         return({})
 
+    # check if this is a subentity
+    isSubEntity = soup.find(
+        id=element.attrs['contextref']).find("xbrli:segment")
+    if isSubEntity:
+        return({})
+
     element_dict = {}
+    element_date = retrieve_date(soup, element, startDate, endDate)
+    if element_date == None:
+        return element_dict
 
     # Basic name and value
     try:
@@ -185,7 +231,7 @@ def parse_element(soup, element) -> Dict:
 
     element_dict['value'] = element.get_text()
     element_dict['unit'] = retrieve_unit(soup, element)
-    element_dict['date'] = retrieve_date(soup, element)
+    element_dict['date'] = element_date
 
     # If there's no value retrieved, try raiding the associated context data
     if element_dict['value'] == "":

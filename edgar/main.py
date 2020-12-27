@@ -4,7 +4,8 @@ import argparse
 import bs4 as bs
 import redis
 from common import config
-import utils
+from common import utils
+
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
@@ -21,7 +22,8 @@ def fetchCompanyData(company_line, year):
 
     try:
         if redis_client.exists(utils.redis_key(company_name, year)):
-            print(f'returning cached data for "{utils.redis_key(company_name, year)}"')
+            print(
+                f'returning cached data for "{utils.redis_key(company_name, year)}"')
             return redis_client.get(utils.redis_key(company_name, year))
     except redis.exceptions.ConnectionError:
         print("Redis isn't running")
@@ -31,6 +33,7 @@ def fetchCompanyData(company_line, year):
         return
 
     to_get_html_site = f'{SEC_ARCHIVE_URL}/{txt_url}'
+    print(to_get_html_site)
     data = requests.get(to_get_html_site).content
 
     soup = bs.BeautifulSoup(data, 'lxml')
@@ -38,9 +41,10 @@ def fetchCompanyData(company_line, year):
 
 
 def prepareIndex(year, quarter):
-    filing = '10-k'
+    filing = '10-K'
     filter = '10-K/A'
-    download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
+    download = requests.get(
+        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
     decoded = download.decode("utf-8").split('\n')
 
     idx = []
@@ -70,8 +74,10 @@ def fetchYear(year):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("yearStart", type=int, help="The year from we want to start scraping")
-    parser.add_argument("yearEnd", type=int, help="The year on which we will stop scraping")
+    parser.add_argument("yearStart", type=int,
+                        help="The year from we want to start scraping")
+    parser.add_argument("yearEnd", type=int,
+                        help="The year on which we will stop scraping")
     args = parser.parse_args()
     # Startup parameters
     year_start = args.yearStart
