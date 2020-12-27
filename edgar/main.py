@@ -3,7 +3,9 @@ import requests
 import argparse
 import bs4 as bs
 import redis
-from common import config, utils
+from common import config
+from common import utils
+
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
@@ -20,7 +22,8 @@ def fetchCompanyData(company_line, year):
 
     try:
         if redis_client.exists(utils.redis_key(company_name, year)):
-            print(f'returning cached data for "{utils.redis_key(company_name, year)}"')
+            print(
+                f'returning cached data for "{utils.redis_key(company_name, year)}"')
             return redis_client.get(utils.redis_key(company_name, year))
     except redis.exceptions.ConnectionError:
         print("Redis isn't running")
@@ -37,9 +40,10 @@ def fetchCompanyData(company_line, year):
 
 
 def prepareIndex(year, quarter):
-    filing = '10-k'
+    filing = '10-K'
     filter = '10-K/A'
-    download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
+    download = requests.get(
+        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
     decoded = download.decode("utf-8").split('\n')
 
     idx = []
