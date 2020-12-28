@@ -73,8 +73,10 @@ def fetchYear(year):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("yearStart", type=int, help="The year from we want to start scraping")
-    parser.add_argument("yearEnd", type=int, help="The year on which we will stop scraping")
+    parser.add_argument("yearStart", type=int,
+                        help="The year from we want to start scraping")
+    parser.add_argument("yearEnd", type=int,
+                        help="The year on which we will stop scraping")
     args = parser.parse_args()
     # Startup parameters
     year_start = args.yearStart
