@@ -53,25 +53,15 @@ def getFinancialData(soup: BeautifulSoup, company: str, year: int, keywords: Lis
     if dateFocus == None:
         return []
 
-    dateFocus = soup.find(id=dateFocus['contextref'])
-
-    date_tag_list = ["xbrli:startdate",
-                     "startdate"]
-
-    startDate = retrieve_element_by_taglist(
-        dateFocus, date_tag_list)
-
-    date_tag_list = ["xbrli:enddate",
-                     "enddate"]
-
-    endDate = retrieve_element_by_taglist(
-        dateFocus, date_tag_list)
+    print(dateFocus['contextref'])
 
     filtered_list = []
     for key in keywords:
-        element_list = soup.find_all(key)
+        element_list = soup.find_all(
+            key, {"contextref": dateFocus['contextref']})
+        print(element_list)
         for element in element_list:
-            element_dict = parse_element(soup, element, startDate, endDate)
+            element_dict = parse_element(soup, element)
             if element_dict:
                 filtered_list.append(element_dict)
 
@@ -161,14 +151,13 @@ def retrieve_element_by_taglist(soup, tagList) -> str:
     return element
 
 
-def retrieve_date(soup, each, startDate=None, endDate=None):
+def retrieve_date(soup, each):
     """
     Gets the reporting date by trying to chase a contextref
     to its source and extract its period, alternatively uses
     element attribute contextref if it's not a reference
     to another element.
     Returns the date
-
     Keyword arguments:
     soup -- BeautifulSoup souped html/xml object
     each -- element of BeautifulSoup souped object
@@ -177,26 +166,34 @@ def retrieve_date(soup, each, startDate=None, endDate=None):
     # Try to find a date tag within the contextref element,
     # starting with the most specific tags, and starting with
     # those for ixbrl docs as it's the most common file.
-    timeElem = soup.find(id=each['contextref'])
-
-    date_tag_list = ["xbrli:startdate",
-                     "startdate"]
-    start_date = retrieve_element_by_taglist(timeElem, date_tag_list)
-
     date_tag_list = ["xbrli:enddate",
-                     "enddate"]
-    end_date = retrieve_element_by_taglist(timeElem, date_tag_list)
+                     "xbrli:instant",
+                     "xbrli:period",
+                     "enddate",
+                     "instant",
+                     "period"]
 
-    if endDate != None:
-        if start_date == startDate and end_date == endDate:
-            end_date = endDate.date().isoformat()
-        else:
-            end_date = None
+    for tag in date_tag_list:
+        try:
+            date_val = parser.parse(soup.find(id=each['contextref']).find(tag).get_text()).\
+                date().\
+                isoformat()
+            return(date_val)
+        except:
+            pass
 
-    return(end_date)
+    try:
+        date_val = parser.parse(each.attrs['contextref']).\
+            date().\
+            isoformat()
+        return(date_val)
+    except:
+        pass
+
+    return("NA")
 
 
-def parse_element(soup, element, startDate, endDate) -> Dict:
+def parse_element(soup, element) -> Dict:
     """
     For a discovered XBRL tagged element, go through, retrieve its name
     and value and associated metadata.
@@ -217,9 +214,6 @@ def parse_element(soup, element, startDate, endDate) -> Dict:
         return({})
 
     element_dict = {}
-    element_date = retrieve_date(soup, element, startDate, endDate)
-    if element_date == None:
-        return element_dict
 
     # Basic name and value
     try:
@@ -231,7 +225,7 @@ def parse_element(soup, element, startDate, endDate) -> Dict:
 
     element_dict['value'] = element.get_text()
     element_dict['unit'] = retrieve_unit(soup, element)
-    element_dict['date'] = element_date
+    element_dict['date'] = retrieve_date(soup, element)
 
     # If there's no value retrieved, try raiding the associated context data
     if element_dict['value'] == "":
