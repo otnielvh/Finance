@@ -5,6 +5,8 @@ from common import config
 from common import utils
 from dateutil import parser
 import json
+import time
+import logging
 
 redis_client = redis.Redis(
     host=config.REDIS_HOST_NAME,
@@ -46,6 +48,7 @@ ELEMENT_LIST = [
 
 
 def getFinancialData(soup: BeautifulSoup, company: str, year: int, keywords: List[str] = None) -> List:
+    start = time.time()
     if keywords is None:
         keywords = ELEMENT_LIST
 
@@ -53,13 +56,10 @@ def getFinancialData(soup: BeautifulSoup, company: str, year: int, keywords: Lis
     if dateFocus == None:
         return []
 
-    print(dateFocus['contextref'])
-
     filtered_list = []
     for key in keywords:
         element_list = soup.find_all(
             key, {"contextref": dateFocus['contextref']})
-        print(element_list)
         for element in element_list:
             element_dict = parse_element(soup, element)
             if element_dict:
@@ -67,8 +67,10 @@ def getFinancialData(soup: BeautifulSoup, company: str, year: int, keywords: Lis
 
     # redis_client.hset(utils.redis_key(company, year), mapping=hash_key)
     redis_client.set(utils.redis_key(company, year), json.dumps(filtered_list))
-    print(
+    logging.info(
         f'successfully retrieved "{utils.redis_key(company, year)}" data from sec')
+    end = time.time()
+    logging.debug(f"elapsed time to parse: {(end - start)}")
     return filtered_list
 
 

@@ -5,7 +5,8 @@ import bs4 as bs
 import redis
 from common import config
 from common import utils
-
+import logging
+import sys
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
@@ -22,11 +23,11 @@ def fetchCompanyData(company_line, year):
 
     try:
         if redis_client.exists(utils.redis_key(company_name, year)):
-            print(
+            logging.info(
                 f'returning cached data for "{utils.redis_key(company_name, year)}"')
             return redis_client.get(utils.redis_key(company_name, year))
     except redis.exceptions.ConnectionError:
-        print("Redis isn't running")
+        logging.error("Redis isn't running")
         raise ConnectionRefusedError("Redis isn't running")
 
     if not txt_url:
@@ -36,7 +37,9 @@ def fetchCompanyData(company_line, year):
     data = requests.get(to_get_html_site).content
 
     soup = bs.BeautifulSoup(data, 'lxml')
-    financial_data.getFinancialData(soup, company_name, year)
+    soup = soup.find("xbrli:xbrl")
+    if soup != None:
+        financial_data.getFinancialData(soup, company_name, year)
 
 
 def prepareIndex(year, quarter):
@@ -60,7 +63,7 @@ def fetchYear(year):
     try:
         idx = open(filename)
     except IOError:
-        print("File not accessible, fetching from web")
+        logging.info("File not accessible, fetching from web")
         # get name of all filings
         idx = prepareIndex(year, quarter)
         with open(filename, 'w+') as f:
@@ -72,6 +75,7 @@ def fetchYear(year):
 
 
 def main():
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument("yearStart", type=int,
                         help="The year from we want to start scraping")
