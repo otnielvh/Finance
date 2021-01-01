@@ -6,9 +6,9 @@ import logging
 import sys
 import os
 
-from edgar import financial_data
-from edgar.common import config
-from edgar.common import utils
+import financial_data
+from common import config
+from common import utils
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
