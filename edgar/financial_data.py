@@ -47,7 +47,7 @@ ELEMENT_LIST = [
 ]
 
 
-def getFinancialData(soup: BeautifulSoup, company: str, year: int, keywords: List[str] = None) -> List:
+def get_financial_data(soup: BeautifulSoup, company: str, year: int, keywords: List[str] = None) -> List:
     start = time.time()
     if keywords is None:
         keywords = ELEMENT_LIST

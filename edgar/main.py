@@ -15,7 +15,7 @@ redis_client = redis.Redis(
     port=config.REDIS_PORT)
 
 
-def fetchCompanyData(company_line, year):
+def fetch_company_data(company_line, year):
     company_line = company_line.strip()
     splitted_company = company_line.split('|')
     txt_url = splitted_company[-1]
@@ -39,10 +39,10 @@ def fetchCompanyData(company_line, year):
     soup = bs.BeautifulSoup(data, 'lxml')
     soup = soup.find("xbrli:xbrl")
     if soup != None:
-        financial_data.getFinancialData(soup, company_name, year)
+        financial_data.get_financial_data(soup, company_name, year)
 
 
-def prepareIndex(year, quarter):
+def prepare_index(year, quarter):
     filing = '10-K'
     filter = '10-K/A'
     download = requests.get(
@@ -56,30 +56,32 @@ def prepareIndex(year, quarter):
     return idx
 
 
-def fetchYear(year):
+def fetch_year(year):
     quarter = 'QTR1'
-    filename = f'../assets/{year}-{quarter}-master.idx'
+    filename = f'./assets/{year}-{quarter}-master.idx'
 
     try:
         idx = open(filename)
     except IOError:
         logging.info("File not accessible, fetching from web")
         # get name of all filings
-        idx = prepareIndex(year, quarter)
+        idx = prepare_index(year, quarter)
         with open(filename, 'w+') as f:
             for item in idx:
                 f.write("%s\n" % item)
 
     for item in idx:
-        fetchCompanyData(item, year)
+        fetch_company_data(item, year)
 
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument("yearStart", type=int,
+    parser.add_argument("yearStart",
+                        type=int,
                         help="The year from we want to start scraping")
-    parser.add_argument("yearEnd", type=int,
+    parser.add_argument("yearEnd",
+                        type=int,
                         help="The year on which we will stop scraping")
     args = parser.parse_args()
     # Startup parameters
@@ -87,7 +89,7 @@ def main():
     year_end = args.yearEnd
 
     for year in range(year_start, year_end):
-        fetchYear(year)
+        fetch_year(year)
 
 
 if __name__ == "__main__":
