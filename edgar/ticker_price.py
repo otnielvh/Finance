@@ -8,7 +8,9 @@ import logging
 
 redis_client = redis.Redis(
     host=config.REDIS_HOST_NAME,
-    port=config.REDIS_PORT)
+    port=config.REDIS_PORT,
+    decode_responses=True
+)
 
 
 def get_prices(ticker: str, start: datetime, end: datetime) -> float:

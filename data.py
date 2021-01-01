@@ -14,7 +14,10 @@ SYMBOLS_PATH = 'nasdaq_symbols.csv'
 BASE_URL_V3 = 'https://financialmodelingprep.com/api/v3'
 r = redis.Redis(
     host=config.REDIS_HOST_NAME,
-    port=config.REDIS_PORT)
+    port=config.REDIS_PORT,
+    decode_responses=True
+
+)
 
 
 SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',

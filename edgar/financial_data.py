@@ -1,15 +1,18 @@
 from typing import List, Dict
 from bs4 import BeautifulSoup
 import redis
-from common import config
-from common import utils
+from .common import config
+from .common import utils
 from dateutil import parser
 import time
 import logging
 
 redis_client = redis.Redis(
     host=config.REDIS_HOST_NAME,
-    port=config.REDIS_PORT)
+    port=config.REDIS_PORT,
+    decode_responses=True
+
+)
 
 ELEMENT_LIST = [
     # general
@@ -46,7 +49,7 @@ ELEMENT_LIST = [
 ]
 
 
-def get_financial_data(soup: BeautifulSoup, company: str, year: int, keywords: List[str] = None) -> List:
+def get_financial_data(soup: BeautifulSoup, ticker: str, year: int, keywords: List[str] = None) -> List:
     start = time.time()
     if keywords is None:
         keywords = ELEMENT_LIST
@@ -67,11 +70,11 @@ def get_financial_data(soup: BeautifulSoup, company: str, year: int, keywords: L
     data = {d.get('name'): d.get('value') for d in filtered_list}
     if not data:
         data['None'] = 0
-        logging.info(f'Data for "{utils.redis_key(company, year)}" is empty')
+        logging.info(f'Data for "{utils.redis_key(ticker, year)}" is empty')
 
-    redis_client.hset(utils.redis_key(company, year), mapping=data)
+    redis_client.hset(utils.redis_key(ticker, year), mapping=data)
     logging.info(
-        f'successfully retrieved "{utils.redis_key(company, year)}" data from sec')
+        f'successfully retrieved "{utils.redis_key(ticker, year)}" data from sec')
     end = time.time()
     logging.debug(f"elapsed time to parse: {(end - start)}")
     return filtered_list
