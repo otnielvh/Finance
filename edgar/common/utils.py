@@ -2,6 +2,11 @@ from enum import Enum
 from collections import namedtuple
 
 
+TICKER_CIK_LIST_URL = 'https://www.sec.gov/include/ticker.txt'
+REDIS_TICKER_SET = 'ticker_set'
+REDIS_CIK2TICKER_KEY = 'cik2ticker'
+
+
 class Period(Enum):
     Year = 1
     Quarter = 2
@@ -37,5 +42,5 @@ BalanceSheet = namedtuple('BalanceSheet',
 TickerData = namedtuple('TickerData', ['profile', 'income_list', 'balance_sheet_list'])
 
 
-def redis_key(name: str, year: int):
-    return f'{name.replace(" ", "-")}:{year}'
+def redis_key(ticker: str, year: int):
+    return f'{ticker}:{year}'
