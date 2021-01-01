@@ -1,3 +1,6 @@
 assets
+.idea
 .vscode
 .metals
+__pycache__/
+*.py[cod]
