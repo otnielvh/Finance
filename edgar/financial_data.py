@@ -4,7 +4,6 @@ import redis
 from common import config
 from common import utils
 from dateutil import parser
-import json
 import time
 import logging
 
@@ -65,8 +64,12 @@ def get_financial_data(soup: BeautifulSoup, company: str, year: int, keywords: L
             if element_dict:
                 filtered_list.append(element_dict)
 
-    # redis_client.hset(utils.redis_key(company, year), mapping=hash_key)
-    redis_client.set(utils.redis_key(company, year), json.dumps(filtered_list))
+    data = {d.get('name'): d.get('value') for d in filtered_list}
+    if not data:
+        data['None'] = 0
+        logging.info(f'Data for "{utils.redis_key(company, year)}" is empty')
+
+    redis_client.hset(utils.redis_key(company, year), mapping=data)
     logging.info(
         f'successfully retrieved "{utils.redis_key(company, year)}" data from sec')
     end = time.time()

@@ -1,12 +1,14 @@
-import financial_data
 import requests
 import argparse
 import bs4 as bs
 import redis
-from common import config
-from common import utils
 import logging
 import sys
+import os
+
+import financial_data
+from common import config
+from common import utils
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
@@ -25,7 +27,7 @@ def fetch_company_data(company_line, year):
         if redis_client.exists(utils.redis_key(company_name, year)):
             logging.info(
                 f'returning cached data for "{utils.redis_key(company_name, year)}"')
-            return redis_client.get(utils.redis_key(company_name, year))
+            return redis_client.hgetall(utils.redis_key(company_name, year))
     except redis.exceptions.ConnectionError:
         logging.error("Redis isn't running")
         raise ConnectionRefusedError("Redis isn't running")
@@ -58,11 +60,12 @@ def prepare_index(year, quarter):
 
 def fetch_year(year):
     quarter = 'QTR1'
-    filename = f'./assets/{year}-{quarter}-master.idx'
+    filename = f'{config.ASSETS_DIR}/{year}-{quarter}-master.idx'
 
-    try:
-        idx = open(filename)
-    except IOError:
+    if not os.path.isdir(config.ASSETS_DIR):
+        os.mkdir(config.ASSETS_DIR)
+
+    if not os.path.exists(filename):
         logging.info("File not accessible, fetching from web")
         # get name of all filings
         idx = prepare_index(year, quarter)
@@ -70,9 +73,9 @@ def fetch_year(year):
             for item in idx:
                 f.write("%s\n" % item)
 
+    idx = open(filename)
     for item in idx:
         fetch_company_data(item, year)
-
 
 def main():
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
