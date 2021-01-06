@@ -157,7 +157,6 @@ def retrieve_unit(soup, each):
 
     return unit_str.strip()
 
-
 def retrieve_element_by_taglist(soup: BeautifulSoup, tag_list: List[str]) -> str:
     element = None
     for tag in tag_list:
@@ -208,7 +207,7 @@ def retrieve_date(soup, each):
     except:
         pass
 
-    return ("NA")
+    return "NA"
 
 
 def parse_element(soup, element) -> Dict:
