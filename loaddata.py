@@ -45,7 +45,7 @@ def prepare_index(year, quarter):
     filing = '10-K'
     exclude = '10-K/A'
     download = requests.get(
-        f'{SEC_ARCHIVE_URL}/data/full-index/{year}/{quarter}/master.idx').content
+        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
     decoded = download.decode("utf-8").split('\n')
 
     idx = []
