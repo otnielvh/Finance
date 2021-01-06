@@ -18,13 +18,20 @@ redis_client = redis.Redis(
 )
 
 
-def fetch_company_data(ticker: str, year: int, txt_url: str):
-
+def fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
+    """Fetch the data for the specified company and year from sec
+    Args:
+        ticker str: The ticker name
+        year int: The year
+        txt_url str: The url to fetch from the data
+    Returns:
+        None
+    """
     try:
         if redis_client.exists(utils.redis_key(ticker, year)):
             logging.info(
-                f'returning cached data for "{utils.redis_key(ticker, year)}"')
-            return redis_client.hgetall(utils.redis_key(ticker, year))
+                f'data is already cached data for "{utils.redis_key(ticker, year)}"')
+            return  # redis_client.hgetall(utils.redis_key(ticker, year))
     except redis.exceptions.ConnectionError:
         logging.error("Redis isn't running")
         raise ConnectionRefusedError("Redis isn't running")
@@ -41,7 +48,15 @@ def fetch_company_data(ticker: str, year: int, txt_url: str):
         financial_data.get_financial_data(soup, ticker, year)
 
 
-def prepare_index(year, quarter):
+def prepare_index(year: int, quarter: str) -> None:
+    """Prepare the edgar index for the passed year and quarter
+    The data will be saved to DB
+    Args:
+        year int: The year to build the index for
+        quarter str: The quarter to build the index for in the format of 'QTR%i' where is between 1-4
+    Returns:
+        None
+    """
     filing = '10-K'
     exclude = '10-K/A'
     download = requests.get(
@@ -55,22 +70,30 @@ def prepare_index(year, quarter):
     return idx
 
 
-def fetch_year(year: int):
+def fetch_year(year: int) -> None:
+    """Fetch stocks data according to the passed year
+    The data will be saved to DB
+    Args:
+        year int: The year to fetch stocks data
+    Returns:
+        None
+    """
     quarter = 'QTR1'
     filename = f'{config.ASSETS_DIR}/{year}-{quarter}-master.idx'
 
     if not os.path.isdir(config.ASSETS_DIR):
         os.mkdir(config.ASSETS_DIR)
 
+    # check if the index exists
     if not os.path.exists(filename):
         logging.info("File not accessible, fetching from web")
-        # get name of all filings
+        # build the index file
         idx = prepare_index(year, quarter)
         with open(filename, 'w+') as f:
             for item in idx:
                 f.write("%s\n" % item)
 
-                # store entry in Redis
+                # store each entry in Redis
                 company_line = item.strip()
                 splitted_company = company_line.split('|')
                 txt_url = splitted_company[-1]
@@ -94,9 +117,11 @@ def fetch_year(year: int):
         logging.error('error in ticker_list_response')
 
 
-def fetch_ticker_list():
-    """
-    Fetch a list of tickers from sec, and store them in cache. Skip if already in cache.
+def fetch_ticker_list() -> None:
+    """Fetch a list of tickers from sec, and store them in the DB.
+    Skip if already in cache.
+    Returns:
+        None
     """
     if not redis_client.exists(utils.REDIS_TICKER_SET):
         resp = requests.get(utils.TICKER_CIK_LIST_URL)
