@@ -48,25 +48,36 @@ ELEMENT_LIST = [
 ]
 
 
-def get_financial_data(soup: BeautifulSoup, ticker: str, year: int, keywords: List[str] = None) -> List:
+def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
+    """Extract from passed soup document all finanical data according to keywords list
+    Args:
+        soup BeautifulSoup: The soup document holding the report to parse
+        ticker int: The ticker of the company
+        year int: The year to fetch stocks data
+    Returns:
+        List
+    """
     start = time.time()
-    if keywords is None:
-        keywords = ELEMENT_LIST
+    keywords = ELEMENT_LIST
 
-    dateFocus = soup.find("dei:documentfiscalperiodfocus")
-    if dateFocus == None:
+    # get from the report the focus date of the report
+    report_date_focus = soup.find("dei:documentfiscalperiodfocus")
+    if report_date_focus is None:
         return []
 
+    # extract all the data according to the report focus date and the keywords
     filtered_list = []
     for key in keywords:
         element_list = soup.find_all(
-            key, {"contextref": dateFocus['contextref']})
+            key, {"contextref": report_date_focus['contextref']})
         for element in element_list:
             element_dict = parse_element(soup, element)
             if element_dict:
                 filtered_list.append(element_dict)
 
+    # prepare the data for saving
     data = {d.get('name'): d.get('value') for d in filtered_list}
+    # TBD should this be save? We need to filter what is not interesting for us
     if not data:
         data['None'] = 0
         logging.info(f'Data for "{utils.redis_key(ticker, year)}" is empty')
@@ -76,7 +87,7 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int, keywords: Li
         f'successfully retrieved "{utils.redis_key(ticker, year)}" dataload from sec')
     end = time.time()
     logging.debug(f"elapsed time to parse: {(end - start)}")
-    return filtered_list
+    # return filtered_list
 
 
 def clean_value(string):
@@ -88,14 +99,14 @@ def clean_value(string):
     zero.
     """
     if string.strip() == "-":
-        return(0.0)
+        return (0.0)
 
     try:
-        return(float(string.strip().replace(",", "").replace(" ", "")))
+        return float(string.strip().replace(",", "").replace(" ", ""))
     except:
         pass
 
-    return(string)
+    return string
 
 
 def retrieve_from_context(soup, contextref):
@@ -142,17 +153,17 @@ def retrieve_unit(soup, each):
         try:
             unit_str = each.attrs['unitref']
         except:
-            return("NA")
+            return "NA"
 
     return unit_str.strip()
 
 
-def retrieve_element_by_taglist(soup, tagList) -> str:
+def retrieve_element_by_taglist(soup: BeautifulSoup, tag_list: List[str]) -> str:
     element = None
-    for tag in tagList:
+    for tag in tag_list:
         try:
             element = parser.parse(soup.find(tag).get_text())
-            return(element)
+            return element
         except:
             pass
     return element
@@ -182,22 +193,22 @@ def retrieve_date(soup, each):
 
     for tag in date_tag_list:
         try:
-            date_val = parser.parse(soup.find(id=each['contextref']).find(tag).get_text()).\
-                date().\
+            date_val = parser.parse(soup.find(id=each['contextref']).find(tag).get_text()). \
+                date(). \
                 isoformat()
-            return(date_val)
+            return (date_val)
         except:
             pass
 
     try:
-        date_val = parser.parse(each.attrs['contextref']).\
-            date().\
+        date_val = parser.parse(each.attrs['contextref']). \
+            date(). \
             isoformat()
-        return(date_val)
+        return (date_val)
     except:
         pass
 
-    return("NA")
+    return ("NA")
 
 
 def parse_element(soup, element) -> Dict:
@@ -212,13 +223,13 @@ def parse_element(soup, element) -> Dict:
 
     # no context so we can't extract dataload
     if "contextref" not in element.attrs:
-        return({})
+        return ({})
 
     # check if this is a subentity
     isSubEntity = soup.find(
         id=element.attrs['contextref']).find("xbrli:segment")
     if isSubEntity:
-        return({})
+        return ({})
 
     element_dict = {}
 
@@ -253,4 +264,4 @@ def parse_element(soup, element) -> Dict:
     except:
         pass
 
-    return(element_dict)
+    return element_dict
