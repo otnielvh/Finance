@@ -6,9 +6,8 @@ import logging
 import sys
 import os
 
-import financial_data
-from common import config
-from common import utils
+from dataload import financial_data as financial_data
+from common import utils, config
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
@@ -84,7 +83,8 @@ def fetch_year(year: int):
                 }
                 redis_client.hset(f'info:{ticker}', mapping=ticker_info_hash)
 
-    ticker_list_resp = redis_client.sscan(utils.REDIS_TICKER_SET, count=30 * 1000)
+    ticker_list_resp = redis_client.sscan(
+        utils.REDIS_TICKER_SET, count=30 * 1000)
     if ticker_list_resp[0] == 0:  # i.e. status OK
         for ticker in ticker_list_resp[1]:
             txt_url = redis_client.hget(f'info:{ticker}', f'txt_url:{year}')

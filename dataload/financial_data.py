@@ -1,11 +1,10 @@
-from typing import List, Dict
-from bs4 import BeautifulSoup
-import redis
-from common import config
-from common import utils
-from dateutil import parser
-import time
 import logging
+import time
+from typing import List, Dict
+import redis
+from bs4 import BeautifulSoup
+from dateutil import parser
+from common import utils, config
 
 redis_client = redis.Redis(
     host=config.REDIS_HOST_NAME,
@@ -24,8 +23,8 @@ ELEMENT_LIST = [
     'us-gaap:salesrevenuenet'
     'us-gaap:revenues',
     'us-gaap:costofgoodssold',
-    # revenue
 
+    # revenue
     'us-gaap:costofrevenue',
     'us-gaap:grossprofit',
 
@@ -74,7 +73,7 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int, keywords: Li
 
     redis_client.hset(utils.redis_key(ticker, year), mapping=data)
     logging.info(
-        f'successfully retrieved "{utils.redis_key(ticker, year)}" data from sec')
+        f'successfully retrieved "{utils.redis_key(ticker, year)}" dataload from sec')
     end = time.time()
     logging.debug(f"elapsed time to parse: {(end - start)}")
     return filtered_list
@@ -101,9 +100,9 @@ def clean_value(string):
 
 def retrieve_from_context(soup, contextref):
     """
-    Used where an element of the document contained no data, only a
+    Used where an element of the document contained no dataload, only a
     reference to a context element.
-    Finds the relevant context element and retrieves the relevant data.
+    Finds the relevant context element and retrieves the relevant dataload.
 
     Returns a text string
 
@@ -211,7 +210,7 @@ def parse_element(soup, element) -> Dict:
     element -- soup object of discovered tagged element
     """
 
-    # no context so we can't extract data
+    # no context so we can't extract dataload
     if "contextref" not in element.attrs:
         return({})
 
@@ -235,7 +234,7 @@ def parse_element(soup, element) -> Dict:
     element_dict['unit'] = retrieve_unit(soup, element)
     element_dict['date'] = retrieve_date(soup, element)
 
-    # If there's no value retrieved, try raiding the associated context data
+    # If there's no value retrieved, try raiding the associated context dataload
     if element_dict['value'] == "":
         element_dict['value'] = retrieve_from_context(
             soup, element.attrs['contextref'])

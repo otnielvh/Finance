@@ -1,7 +1,7 @@
 from common.utils import TickerData, Period
 from typing import List
 from datetime import datetime
-import data
+from algorithm import data as data
 from common.utils import Statements
 from operator import itemgetter
 from joblib import Parallel, delayed
