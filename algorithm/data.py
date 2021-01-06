@@ -10,7 +10,7 @@ from common import config
 
 API_KEY = 'Demo'
 DATE_FORMAT = '%Y-%m-%d'
-SYMBOLS_PATH = 'nasdaq_symbols.csv'
+SYMBOLS_PATH = '../assets/nasdaq_symbols.csv'
 BASE_URL_V3 = 'https://financialmodelingprep.com/api/v3'
 r = redis.Redis(
     host=config.REDIS_HOST_NAME,

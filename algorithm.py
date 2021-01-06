@@ -1,7 +1,7 @@
 from common.utils import Period
 from datetime import datetime
-from score import ScoreExample
-import data
+from algorithm.score import ScoreExample
+from algorithm import data as data
 
 TICKER_LIST = ['cpe', 'payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn',
                'tsla', 'sedg', 'now', 'teva', 'vrtx', 'PFG', 'RCL', 'HAL', 'NVS', 'LIN', 'c', 'rtx']
@@ -27,7 +27,7 @@ def gain_from_buy_and_sell(ticker: str, start: datetime, end: datetime) -> float
 def main():
     algo_score = ScoreExample(data.get_ticker_list(), FINANCE_START_DATE, FINANCE_END_DATE)
     algo_score.compute_score()
-    print("successfully retrieved data")
+    print("successfully retrieved dataload")
 
     # compare high score stocks to lows score stocks performance
     title = 'ticker\tgain\t\t'
