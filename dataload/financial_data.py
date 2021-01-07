@@ -15,7 +15,7 @@ redis_client = redis.Redis(
 
 ELEMENT_LIST = [
     # general
-    # 'dei:tradingsymbol',
+    'us-gaap:CommonStockSharesOutstanding'
 
     # income statement
 
@@ -55,7 +55,7 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
         ticker int: The ticker of the company
         year int: The year to fetch stocks data
     Returns:
-        List
+        None
     """
     start = time.time()
     keywords = ELEMENT_LIST
@@ -156,6 +156,7 @@ def retrieve_unit(soup, each):
             return "NA"
 
     return unit_str.strip()
+
 
 def retrieve_element_by_taglist(soup: BeautifulSoup, tag_list: List[str]) -> str:
     element = None
