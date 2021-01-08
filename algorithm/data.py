@@ -1,3 +1,4 @@
+import logging
 from common.utils import *
 from typing import Dict, List
 import requests
@@ -73,18 +74,18 @@ def dict2profile(d: Dict) -> Profile:
 def dict2income(d: Dict) -> Income:
     return Income(
         Date=d.get('date'),
-        Revenue=d.get('revenue'),
-        CostOfRevenue=d.get('costOfRevenue'),
-        GrossProfit=d.get('grossProfit'),
-        RnDExpenses=d.get('researchAndDevelopmentExpenses'),
-        GAExpense=d.get('generalAndAdministrativeExpenses'),
-        SaMExpense=d.get('sellingAndMarketingExpenses'),
-        OperatingExpenses=d.get('operatingExpenses'),
-        OperatingIncome=d.get('operatingIncome'),
-        InterestExpense=d.get('Interest Expense'),
-        NetIncome=d.get('netIncome'),
-        EBITDA=d.get('ebitda'),
-        EBITratio=d.get('ebitdaratio')
+        Revenue=None,
+        CostOfRevenue=None,
+        GrossProfit=d.get('grossprofit'),
+        RnDExpenses=d.get('researchanddevelopmentexpense'),
+        GAExpense=None,
+        SaMExpense=d.get('sellinggeneralandadministrativeexpense'),
+        OperatingExpenses=d.get('operatingexpenses'),
+        OperatingIncome=d.get('operatingincomeloss'),
+        InterestExpense=None,
+        NetIncome=d.get('netincomeloss'),
+        EBITDA=None,
+        EBITratio=None
     )
 
 
@@ -129,41 +130,32 @@ def getUrl(statement: Statements) -> str:
     return d[statement]
 
 
-def get_financials(ticker: str, statement: Statements = Statements.Income,
+# TODO: get years dynamically
+def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
+                   statement: Statements = Statements.Income,
                    period: Period = Period.Year) -> List[Income]:
 
-    url = f'{BASE_URL_V3}/{getUrl(statement)}/{ticker.upper()}'
-    params = {'apikey': API_KEY}
-    if period == Period.Quarter:
-        params['period'] = 'quarter'
+    fin_by_year = []
+    for year in range(from_year, to_year + 1):
+        resp = r.hgetall(f'{ticker}:{year}')
+        resp['date'] = year
+        fin_by_year.append(resp)
 
-    resp = get_cached_url(url, params=params)
     financial_list = []
-    if statement == Statements.Profile:
-        financial_list = dict2profile(resp[0])
     if statement == Statements.Income:
-        financial_list = [dict2income(d) for d in resp]
+        financial_list = [dict2income(d) for d in fin_by_year]
     elif statement == Statements.BalanceSheet:
-        financial_list = [dict2balance_sheet(d) for d in resp]
-    # elif statement == Statements.CashFlow:
-    #     financial_list = [dict2cash_flow(d) for d in resp['financials']]
+        financial_list = [dict2balance_sheet(d) for d in fin_by_year]
 
-    if statement != Statements.Profile:
-        financial_list.reverse()
     return financial_list
 
 
 def get_ticker_list() -> List[str]:
-    url = f'{BASE_URL_V3}/company/stock/list'
-    params = {'apikey': API_KEY}
-    ticker_list = []
-    for x in get_cached_url(url, params=params)['symbolsList']:
-        if x.get('exchange', None) in SUPPORTED_STOCK_EXCHANGES:
-            name = x.get('name', '').lower()
-            if name and 'fund' not in name and 'etf' not in name:
-                ticker_list.append(x.get('symbol'))
-    print(f'Number of supported stocks: {len(ticker_list)}')
-    return ticker_list
+    ticker_list_resp = r.sscan(REDIS_TICKER_SET, 0, count=30 * 1000)
+    if ticker_list_resp[0] == 0:  # i.e. status OK
+        return ticker_list_resp[1]
+    else:
+        logging.error('failed to load ticker list')
 
 
 def get_prices(ticker: str, start: datetime, end: datetime) -> List:
