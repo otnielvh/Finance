@@ -16,13 +16,8 @@ FINANCE_END_DATE = datetime(2016, 2, 1)
 
 
 def gain_from_buy_and_sell(ticker: str, start: datetime, end: datetime) -> float:
-    start_data = data.get_prices(ticker, start, start)[0]
-    end_data = data.get_prices(ticker, end, end)[0]
-    # TODO: consider better pricing startegy
-    start_price = float(start_data.get('open'))
-    end_price = float(end_data.get('open'))
-    return (end_price - start_price) / start_price
-
+    # TODO: get data from timeseries
+    return 0
 
 def main():
     algo_score = ScoreExample(data.get_ticker_list(), FINANCE_START_DATE, FINANCE_END_DATE)

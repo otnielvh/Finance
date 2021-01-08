@@ -1,10 +1,10 @@
+import logging
 from common.utils import TickerData, Period
 from typing import List
 from datetime import datetime
 from algorithm import data as data
 from common.utils import Statements
 from operator import itemgetter
-from joblib import Parallel, delayed
 from collections import namedtuple
 
 THREADS = 200
@@ -25,9 +25,7 @@ class BaseScore:
         new_income_list: List[data.Income] = []
         for income in income_list:
             try:
-                current_date = datetime.strptime(income.Date, data.DATE_FORMAT)
-                if self.start_date <= current_date <= self.end_date:
-                    new_income_list.append(income)
+                new_income_list.append(income)
             except ValueError:
                 print(f'ValueError: could not parse {income.date}')
         return new_income_list
@@ -38,8 +36,11 @@ class BaseScore:
         :return: List where each row contains the ticker name and a scores (maybe more than 1)
         """
 
-        score_list: [ScoreEntry] = Parallel(n_jobs=THREADS, prefer="threads")(
-            delayed(self.process_ticker)(ticker) for ticker in self.ticker_list)
+        score_list: [ScoreEntry] = []
+
+        for ticker in self.ticker_list:
+            score = self.process_ticker(ticker)
+            score_list.append(score)
 
         self.score_list: [ScoreEntry] = [score for score in score_list if score]
         self.filter()
@@ -85,31 +86,34 @@ class ScoreExample(BaseScore):
         :return: a tuple
         """
         rnd_score = 0.0
-        debt_score = 0
+        # TODO: add debt score
+        # debt_score = 0
 
         income_list = ticker_data.income_list
-        balance_sheet_list = ticker_data.balance_sheet_list
+        # balance_sheet_list = ticker_data.balance_sheet_list
         for i in range(len(income_list)):
 
             try:
-                debt_score += float(balance_sheet_list[i].TotalAssets) / max(
-                    float(balance_sheet_list[i].TotalLiabilities),
-                    float(balance_sheet_list[i].TotalAssets) / 5)  # handle case of zero or very low debt for one year
-                rnd_score += float(income_list[i].RnDExpenses) / float(income_list[i].OperatingExpenses)
-
-            except IndexError:
-                print(f'index {i!r} out of bounds for {ticker!r}')
-            except ZeroDivisionError:
-                print(f'{ticker!r} revenue is zero for {income_list[i].Date}')
+                # debt_score += float(balance_sheet_list[i].TotalAssets) / max(
+                #     float(balance_sheet_list[i].TotalLiabilities),
+                #     float(balance_sheet_list[i].TotalAssets) / 5)  # handle case of zero or very low debt for one year
+                if income_list[i].RnDExpenses and income_list[i].OperatingExpenses:
+                    rnd_score += float(income_list[i].RnDExpenses) / float(income_list[i].OperatingExpenses)
+                else:
+                    logging.info(f'failed to process inclcome list {i} for {ticker}')
+            except IndexError as e:
+                print(f'index {i!r} out of bounds for {ticker!r} -> {e}')
+            except ZeroDivisionError as e:
+                print(f'{ticker!r} revenue is zero for {income_list[i].Date} -> {e}')
 
         return ScoreEntry(
             ticker=ticker,
             grossProfitGrowth=avg_growth(ticker, income_list, 'GrossProfit'),
             incomeGrowth=avg_growth(ticker, income_list, 'NetIncome'),
             RnDRatio=rnd_score / max(len(income_list), 1),
-            cashPerDebt=debt_score / max(len(income_list), 1),
-            netIncome=average(ticker, income_list, 'NetIncome'),
-            mktCap=ticker_data.profile.mktCap
+            cashPerDebt=0,
+            netIncome=average(income_list, 'NetIncome'),
+            mktCap=0
         )
 
     def sort(self):
@@ -118,12 +122,12 @@ class ScoreExample(BaseScore):
     def filter(self):
         filtered_list: [ScoreEntry] = []
         for score in self.score_list:
-            if (1.25 < score.grossProfitGrowth < 1.5
-                    and 0.25 < score.RnDRatio < 0.7):
+            # if (1.25 < score.grossProfitGrowth < 1.5
+            #         and 0.25 < score.RnDRatio < 0.7):
                 # and 0.2 < score.RnDRatio < 0.7
                 # and 0.41 < score.cashPerDebt
                 # and 0 < score.netIncome
-                filtered_list.append(score)
+            filtered_list.append(score)
         self.score_list = filtered_list
 
 
@@ -132,19 +136,23 @@ def avg_growth(ticker: str, my_list: List, field: str) -> float:
     for i in range(len(my_list) - 1):
         start_data = my_list[i]
         end_data = my_list[i+1]
-
-        start = float(start_data._asdict().get(field))
-        end = float(end_data._asdict().get(field))
-        if end != 0:
-            acc_growth += (end - start) / start
-        else:
-            print(f'ticker {ticker!r} {field} is zero for {end_data.Date}')
-            acc_growth += 1
+        try:
+            start = float(start_data._asdict().get(field))
+            end = float(end_data._asdict().get(field))
+            if end != 0:
+                acc_growth += (end - start) / start
+            else:
+                print(f'ticker {ticker!r} {field} is zero for {end_data.Date}')
+                acc_growth += 1
+        except Exception as e:
+            logging.error(f'failed to process ticker {ticker} field {field} -> {e}')
     return acc_growth / max(len(my_list) - 1.0, 1.0)
 
 
-def average(ticker: str, my_list: List, field: str) -> float:
+def average(my_list: List, field: str) -> float:
     my_sum: float = 0
     for i in range(len(my_list)):
-        my_sum += float(my_list[i]._asdict().get(field))
+        data = my_list[i]._asdict().get(field)
+        if data:
+            my_sum += float(data)
     return my_sum / max(len(my_list), 1)

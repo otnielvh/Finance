@@ -20,7 +20,7 @@ def get_prices(ticker: str, start: datetime, end: datetime) -> float:
         "TS.RANGE", f"{ticker}:price", starttime, endtime)
 
 
-def store_ticker(ticker: str) -> DataFrame:
+def store_ticker(ticker: str) -> None:
     yf_ticker = yf.Ticker(ticker)
     # allowed periods are: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
     price_history = yf_ticker.history(period="max")
