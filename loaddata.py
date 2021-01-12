@@ -43,8 +43,12 @@ def fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
     to_get_html_site = f'{SEC_ARCHIVE_URL}/{txt_url}'
     data = requests.get(to_get_html_site).content
 
-    soup = bs.BeautifulSoup(data, 'lxml')
-    soup = soup.find("xbrli:xbrl")
+    xbrl_doc = bs.SoupStrainer("xbrl")
+    soup = bs.BeautifulSoup(data, 'lxml', parse_only=xbrl_doc)
+    # if soup is None:
+    #     xbrl_doc = bs.SoupStrainer("xbrli:xbrl")
+    #     soup = bs.BeautifulSoup(data, 'lxml', parse_only=xbrl_doc)
+
     if soup:
         financial_data.get_financial_data(soup, ticker, year)
 
@@ -62,7 +66,7 @@ def prepare_index(year: int, quarter: str) -> List[str]:
     exclude = '10-K/A'
     download = requests.get(
         f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
-    decoded = download.decode("utf-8").split('\n')
+    decoded = download.decode("ISO-8859-1").split('\n')
 
     idx = []
     for item in decoded:
