@@ -19,7 +19,22 @@ redis_client = redis.Redis(
 )
 
 
-def fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
+def fetch_company_data(ticker: str, year: int) -> None:
+    """Fetch the data for the specified company and year from sec
+    Args:
+        ticker str: The ticker name
+        year int: The year
+    Returns:
+        None
+    """
+    txt_url = redis_client.hget(f'{ticker}:info', f'txt_url:{year}')
+    if txt_url:
+        _fetch_company_data(ticker, year, txt_url)
+    else:
+        logging.info(f"Couldn't load data for {ticker}:{year}")
+
+
+def _fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
     """Fetch the data for the specified company and year from sec
     Args:
         ticker str: The ticker name
@@ -53,38 +68,39 @@ def fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
         financial_data.get_financial_data(soup, ticker, year)
 
 
-def prepare_index(year: int, quarter: str) -> List[str]:
+def prepare_index(year: int, quarter: int) -> List[List[str]]:
     """Prepare the edgar index for the passed year and quarter
     The data will be saved to DB
     Args:
         year int: The year to build the index for
-        quarter str: The quarter to build the index for in the format of 'QTR%i' where is between 1-4
+        quarter int: The quarter to build the index between 1-4
     Returns:
         List
     """
     filing = '10-K'
     exclude = '10-K/A'
     download = requests.get(
-        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/{quarter}/master.idx').content
+        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/QTR{quarter}/master.idx').content
     decoded = download.decode("ISO-8859-1").split('\n')
 
     idx = []
     for item in decoded:
         if (filing in item) and (exclude not in item):
-            idx.append(item)
+            idx.append(item.split('|'))
     return idx
 
 
-def fetch_year(year: int) -> None:
+def fetch_year(year: int, ticker: str = None) -> None:
     """Fetch stocks data according to the passed year
     The data will be saved to DB
     Args:
         year int: The year to fetch stocks data
+        ticker str: if not None cache this ticker, otherwise cache all
     Returns:
         None
     """
-    quarter = 'QTR4'
-    filename = f'{config.ASSETS_DIR}/{year}-{quarter}-master.idx'
+
+    filename = f'{config.ASSETS_DIR}/{year}-master.idx'
 
     if not os.path.isdir(config.ASSETS_DIR):
         os.mkdir(config.ASSETS_DIR)
@@ -93,10 +109,15 @@ def fetch_year(year: int) -> None:
     if not os.path.exists(filename):
         logging.info(f"File {filename} is not accessible, fetching from web")
         # build the index file
-        idx = prepare_index(year, quarter)
+
+        yearly_idx = []
+        for q in range(1, 5):  # 1 to 4 inclusive
+            idx = prepare_index(year, q)
+            yearly_idx.extend(idx)
+        yearly_idx.sort(key=lambda k: k[0])
         with open(filename, 'w+') as f:
-            for item in idx:
-                f.write("%s\n" % item)
+            for item in yearly_idx:
+                f.write('|'.join(item) + '\n')
 
     # TODO: skip if ticker data is cached
     with open(filename, 'r+') as f:
@@ -107,23 +128,24 @@ def fetch_year(year: int) -> None:
             txt_url = splitted_company[-1]
             company_name = splitted_company[1]
             cik = splitted_company[0].strip()
-            ticker = redis_client.hget(utils.REDIS_CIK2TICKER_KEY, cik)
-            if ticker:
+            current_ticker = redis_client.hget(utils.REDIS_CIK2TICKER_KEY, cik)
+            if (ticker and current_ticker == ticker) or current_ticker:
                 ticker_info_hash = {
                     'company_name': company_name,
                     f'txt_url:{year}': txt_url
                 }
-                redis_client.hset(f'{ticker}:info', mapping=ticker_info_hash)
+                redis_client.hset(f'{current_ticker}:info', mapping=ticker_info_hash)
 
-    ticker_list_resp = redis_client.sscan(
-        utils.REDIS_TICKER_SET, count=30 * 1000)
-    if ticker_list_resp[0] == 0:  # i.e. status OK
-        for ticker in ticker_list_resp[1]:
-            txt_url = redis_client.hget(f'{ticker}:info', f'txt_url:{year}')
-            if txt_url:
-                fetch_company_data(ticker, year, txt_url)
+    if ticker:
+        fetch_company_data(ticker, year)
     else:
-        logging.error('error in ticker_list_response')
+        ticker_list_resp = redis_client.sscan(
+            utils.REDIS_TICKER_SET, count=30 * 1000)
+        if ticker_list_resp[0] == 0:  # i.e. status OK
+            for ticker in ticker_list_resp[1]:
+                fetch_company_data(ticker, year)
+        else:
+            logging.error('error in ticker_list_response')
 
 
 def fetch_ticker_list() -> None:
@@ -191,7 +213,7 @@ def main():
         fetch_ticker_list()
 
     for year in range(year_start, year_end + 1):
-        fetch_year(year)
+        fetch_year(year, args.ticker)
 
 
 if __name__ == "__main__":
