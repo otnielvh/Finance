@@ -10,3 +10,4 @@ beautifulsoup4==4.9.3
 lxml==4.6.2
 yfinance==0.1.55
 python-dateutil==2.8.1
+PyMySQL~=1.0.2

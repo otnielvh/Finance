@@ -10,17 +10,17 @@ redis_client = redis.Redis(
     host=config.REDIS_HOST_NAME,
     port=config.REDIS_PORT,
     decode_responses=True
-
 )
 
 ELEMENT_LIST = [
     # general
-    'us-gaap:CommonStockSharesOutstanding'
+    # 'us-gaap:CommonStockSharesOutstanding',
+    'dei:EntityCommonStockSharesOutstanding',
 
     # income statement
 
     # revenue
-    'us-gaap:salesrevenuenet'
+    'us-gaap:salesrevenuenet',
     'us-gaap:revenues',
     'us-gaap:costofgoodssold',
 

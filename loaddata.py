@@ -9,6 +9,7 @@ from typing import List
 
 from dataload import financial_data, ticker_price
 from common import utils, config
+import pymysql
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
@@ -18,6 +19,12 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
+DBConnection = pymysql.connect(
+    host=config.DB_HOST_NAME,
+    user=config.DB_USER,
+    passwd=config.DB_PASSWORD,
+    db=config.DB_NAME
+)
 
 def fetch_company_data(ticker: str, year: int) -> None:
     """Fetch the data for the specified company and year from sec
@@ -60,35 +67,38 @@ def _fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
 
     xbrl_doc = bs.SoupStrainer("xbrl")
     soup = bs.BeautifulSoup(data, 'lxml', parse_only=xbrl_doc)
-    # if soup is None:
-    #     xbrl_doc = bs.SoupStrainer("xbrli:xbrl")
-    #     soup = bs.BeautifulSoup(data, 'lxml', parse_only=xbrl_doc)
 
     if soup:
         financial_data.get_financial_data(soup, ticker, year)
 
 
-def prepare_index(year: int, quarter: int) -> List[List[str]]:
+def prepare_index(year: int, quarter: int) -> None:
     """Prepare the edgar index for the passed year and quarter
     The data will be saved to DB
     Args:
         year int: The year to build the index for
         quarter int: The quarter to build the index between 1-4
     Returns:
-        List
+        None
     """
-    filing = '10-K'
-    exclude = '10-K/A'
+    filing = '|10-K|'
     download = requests.get(
         f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/QTR{quarter}/master.idx').content
     decoded = download.decode("ISO-8859-1").split('\n')
 
-    idx = []
-    for item in decoded:
-        if (filing in item) and (exclude not in item):
-            idx.append(item.split('|'))
-    return idx
-
+    with DBConnection.cursor() as cursor:
+        # Create a new record
+        sql = "INSERT INTO `sec_idx` (`cik`, `year`, `company`, `report_type`, `url`) VALUES (%s, %s, %s, %s, %s)"
+        for item in decoded:
+            if filing in item:
+                values = item.split('|')
+                try:
+                    cursor.execute(sql, (values[0], int(year), values[1], values[2], values[4]))
+                # TBD - some companies have multiple 10-K
+                except pymysql.err.IntegrityError:
+                    pass
+    logging.info(f"Inserted year {year} qtr {quarter} to DB")
+    DBConnection.commit()
 
 def fetch_year(year: int, ticker: str = None) -> None:
     """Fetch stocks data according to the passed year
@@ -108,47 +118,44 @@ def fetch_year(year: int, ticker: str = None) -> None:
     if not os.path.isdir(config.ASSETS_DIR):
         os.mkdir(config.ASSETS_DIR)
 
-    # check if the index exists
-    if not os.path.exists(filename):
-        logging.info(f"File {filename} is not accessible, fetching from web")
-        # build the index file
+    with DBConnection.cursor() as cursor:
+        # Create a new record
+        sql = f'SELECT COUNT(*) FROM {config.DB_NAME}.sec_idx where year={year}'
+        cursor.execute(sql)
+        result = cursor.fetchone()
 
-        yearly_idx = []
-        for q in range(1, 5):  # 1 to 4 inclusive
-            idx = prepare_index(year, q)
-            yearly_idx.extend(idx)
-        yearly_idx.sort(key=lambda k: k[0])
-        with open(filename, 'w+') as f:
-            for item in yearly_idx:
-                f.write('|'.join(item) + '\n')
-
-    with open(filename, 'r+') as f:
-        for item in f.readlines():
-            # store each entry in Redis
-            company_line = item.strip()
-            splitted_company = company_line.split('|')
-            txt_url = splitted_company[-1]
-            company_name = splitted_company[1]
-            cik = splitted_company[0].strip()
-            current_ticker = redis_client.hget(utils.REDIS_CIK2TICKER_KEY, cik)
-            if (ticker and current_ticker == ticker) or current_ticker:
-                ticker_info_hash = {
-                    'company_name': company_name,
-                    f'txt_url:{year}': txt_url
-                }
-                redis_client.hset(f'{current_ticker}:info', mapping=ticker_info_hash)
+        # check if the index exists
+        if result[0] == 0:
+            logging.info(f"File {filename} is not accessible, fetching from web")
+            for q in range(1, 5):  # 1 to 4 inclusive
+                prepare_index(year, q)
 
     if ticker:
-        fetch_company_data(ticker, year)
+        ticker_cik = redis_client.hget(f'{ticker}:info', 'cik')
+        with DBConnection.cursor() as cursor:
+            # Create a new record
+            sql = f'SELECT company, url FROM sec_idx where cik={ticker_cik}'
+            cursor.execute(sql)
+            result = cursor.fetchone()
+            ticker_info_hash = {
+                'company_name': result[0],
+                f'txt_url:{year}': result[1]
+            }
+            redis_client.hset(f'{ticker}:info', mapping=ticker_info_hash)
+            fetch_company_data(ticker, year)
     else:
-        ticker_list_resp = redis_client.sscan(
-            utils.REDIS_TICKER_SET, count=30 * 1000)
-        if ticker_list_resp[0] == 0:  # i.e. status OK
-            for ticker in ticker_list_resp[1]:
+        with DBConnection.cursor() as cursor:
+            # Create a new record
+            sql = f'SELECT company, url, cik FROM sec_idx where year={year}'
+            cursor.execute(sql)
+            for result in cursor.fetchall():
+                current_ticker = redis_client.hget(utils.REDIS_CIK2TICKER_KEY, result[2])
+                ticker_info_hash = {
+                    'company_name': result[0],
+                    f'txt_url:{year}': result[1]
+                }
+                redis_client.hset(f'{current_ticker}:info', mapping=ticker_info_hash)
                 fetch_company_data(ticker, year)
-        else:
-            logging.error('error in ticker_list_response')
-
 
 def fetch_ticker_list() -> List[str]:
     """Fetch a list of tickers from sec, and store them in the DB.
