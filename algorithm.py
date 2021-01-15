@@ -1,4 +1,4 @@
-from common.utils import Period
+from common.utils import Period, get_price
 from datetime import datetime
 from algorithm.score import ScoreExample
 from algorithm import data as data
@@ -16,8 +16,13 @@ FINANCE_END_DATE = datetime(2016, 2, 1)
 
 
 def gain_from_buy_and_sell(ticker: str, start: datetime, end: datetime) -> float:
-    # TODO: get data from timeseries
-    return 0
+    start_price = get_price(ticker, start)
+    end_price = get_price(ticker, end)
+    if start_price:
+        return end_price / start_price
+    else:
+        return 0
+
 
 def main():
     algo_score = ScoreExample(data.get_ticker_list(), FINANCE_START_DATE, FINANCE_END_DATE)
