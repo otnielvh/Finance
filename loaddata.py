@@ -7,7 +7,7 @@ import sys
 import os
 from typing import List
 
-from dataload import financial_data as financial_data
+from dataload import financial_data, ticker_price
 from common import utils, config
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
@@ -99,6 +99,9 @@ def fetch_year(year: int, ticker: str = None) -> None:
     Returns:
         None
     """
+    if ticker and redis_client.exists(utils.redis_key(ticker, year)):
+        logging.info(f'data is already cached data for "{utils.redis_key(ticker, year)}"')
+        return
 
     filename = f'{config.ASSETS_DIR}/{year}-master.idx'
 
@@ -119,7 +122,6 @@ def fetch_year(year: int, ticker: str = None) -> None:
             for item in yearly_idx:
                 f.write('|'.join(item) + '\n')
 
-    # TODO: skip if ticker data is cached
     with open(filename, 'r+') as f:
         for item in f.readlines():
             # store each entry in Redis
@@ -148,21 +150,23 @@ def fetch_year(year: int, ticker: str = None) -> None:
             logging.error('error in ticker_list_response')
 
 
-def fetch_ticker_list() -> None:
+def fetch_ticker_list() -> List[str]:
     """Fetch a list of tickers from sec, and store them in the DB.
     Skip if already in cache.
     Returns:
-        None
+        a list of tickers
     """
+    ticker_list = []
     if not redis_client.exists(utils.REDIS_TICKER_SET):
         resp = requests.get(utils.TICKER_CIK_LIST_URL)
         ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
-
         for entry in ticker_cik_list_lines:
             ticker, cik = entry.strip().split()
             ticker = ticker.strip()
             cik = cik.strip()
             store_ticker_cik_mapping(ticker, cik)
+            ticker_list.append(ticker)
+    return ticker_list
 
 
 def fetch_ticker(ticker: str) -> None:
@@ -207,10 +211,15 @@ def main():
     # Startup parameters
     year_start = args.yearStart
     year_end = args.yearEnd
+
     if args.ticker:
         fetch_ticker(args.ticker)
+        ticker_list = [args.ticker]
     else:
-        fetch_ticker_list()
+        ticker_list = fetch_ticker_list()
+
+    for ticker in ticker_list:
+        ticker_price.store_ticker(ticker)
 
     for year in range(year_start, year_end + 1):
         fetch_year(year, args.ticker)
