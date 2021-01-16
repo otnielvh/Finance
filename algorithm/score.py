@@ -7,8 +7,6 @@ from common.utils import Statements
 from operator import itemgetter
 from collections import namedtuple
 
-THREADS = 200
-
 ScoreEntry = namedtuple('Score', ['ticker', 'grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
                                   'netIncome', 'mktCap'])
 
@@ -86,6 +84,7 @@ class ScoreExample(BaseScore):
         :return: a tuple
         """
         rnd_score = 0.0
+        rnd_count = 0.0
         # TODO: add debt score
         # debt_score = 0
 
@@ -99,6 +98,7 @@ class ScoreExample(BaseScore):
                 #     float(balance_sheet_list[i].TotalAssets) / 5)  # handle case of zero or very low debt for one year
                 if income_list[i].RnDExpenses and income_list[i].OperatingExpenses:
                     rnd_score += float(income_list[i].RnDExpenses) / float(income_list[i].OperatingExpenses)
+                    rnd_count += 1
                 else:
                     logging.info(f'failed to process inclcome list {i} for {ticker}')
             except IndexError as e:
@@ -110,7 +110,7 @@ class ScoreExample(BaseScore):
             ticker=ticker,
             grossProfitGrowth=avg_growth(ticker, income_list, 'GrossProfit'),
             incomeGrowth=avg_growth(ticker, income_list, 'NetIncome'),
-            RnDRatio=rnd_score / max(len(income_list), 1),
+            RnDRatio=rnd_score / rnd_count if rnd_count else 0,
             cashPerDebt=0,
             netIncome=average(income_list, 'NetIncome'),
             mktCap=0
@@ -127,32 +127,36 @@ class ScoreExample(BaseScore):
                 # and 0.2 < score.RnDRatio < 0.7
                 # and 0.41 < score.cashPerDebt
                 # and 0 < score.netIncome
-            filtered_list.append(score)
+            if 0 < score.RnDRatio:
+                filtered_list.append(score)
         self.score_list = filtered_list
 
 
 def avg_growth(ticker: str, my_list: List, field: str) -> float:
     acc_growth = 1
+    count = 0
     for i in range(len(my_list) - 1):
         start_data = my_list[i]
         end_data = my_list[i+1]
         try:
-            start = float(start_data._asdict().get(field))
-            end = float(end_data._asdict().get(field))
-            if end != 0:
-                acc_growth += (end - start) / start
+            start = start_data._asdict().get(field)
+            end = end_data._asdict().get(field)
+            if start and end:
+                acc_growth += (float(end) / float(start)) - 1
+                count += 1
             else:
-                print(f'ticker {ticker!r} {field} is zero for {end_data.Date}')
-                acc_growth += 1
+                logging.info(f'ticker {ticker!r} {field} is None or zero for {start_data.Date} or {end_data.Date}')
         except Exception as e:
             logging.error(f'failed to process ticker {ticker} field {field} -> {e}')
-    return acc_growth / max(len(my_list) - 1.0, 1.0)
+    return 1 + (acc_growth / count) if count > 0 else 0
 
 
 def average(my_list: List, field: str) -> float:
     my_sum: float = 0
+    count = 0
     for i in range(len(my_list)):
-        data = my_list[i]._asdict().get(field)
-        if data:
-            my_sum += float(data)
-    return my_sum / max(len(my_list), 1)
+        data_point = my_list[i]._asdict().get(field)
+        if data_point:
+            my_sum += float(data_point)
+            count += 1
+    return my_sum / count if count else 0.0

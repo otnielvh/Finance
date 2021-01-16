@@ -9,10 +9,7 @@ import json
 import csv
 from common import config
 
-API_KEY = 'Demo'
-DATE_FORMAT = '%Y-%m-%d'
-SYMBOLS_PATH = '../assets/nasdaq_symbols.csv'
-BASE_URL_V3 = 'https://financialmodelingprep.com/api/v3'
+
 r = redis.Redis(
     host=config.REDIS_HOST_NAME,
     port=config.REDIS_PORT,
@@ -24,40 +21,6 @@ r = redis.Redis(
 SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
                              'NYSEArca', 'Nasdaq', 'Nasdaq Global Select', 'NasdaqGM', 'NasdaqGS',
                              'New York Stock Exchange']
-
-
-def get_cached_url(url, params) -> Dict:
-    """ Get URL from cache. If URL not in cache, get from source url and cache the response """
-    try:
-        redis_key = url
-        for key, val in params.items():
-            if key != 'apikey':
-                redis_key += f'--{key}:{val}'
-        redis_resp = r.get(redis_key)
-        if redis_resp is not None:
-            return json.loads(redis_resp)
-    except redis.exceptions.ConnectionError:
-        pass
-
-    resp = requests.get(url, params=params)
-    counter = 0
-    while resp.status_code == 429:
-        seconds = resp.json().get('X-Rate-Limit-Retry-After-Seconds', 0) + 1
-        print(f'received 429: sleeping for {seconds} for the {counter}th time')
-        time.sleep(seconds)
-        resp = requests.get(url, params=params)
-        counter += 1
-
-    resp.raise_for_status()
-
-    data = resp.json()
-
-    try:
-        r.set(redis_key, json.dumps(data))
-    except redis.exceptions.ConnectionError:
-        pass
-
-    return data
 
 
 def dict2profile(d: Dict) -> Profile:
@@ -113,23 +76,6 @@ def dict2balance_sheet(d: Dict) -> BalanceSheet:
     )
 
 
-# def dict2cash_flow(d: Dict) -> CashFlow:
-#     return CashFlow(
-#         Date=d.get('date'),
-#         #TODO: fill in
-#     )
-
-
-def getUrl(statement: Statements) -> str:
-    d = {
-        Statements.Profile: 'profile',
-        Statements.Income: 'income-statement',
-        Statements.BalanceSheet: 'balance-sheet-statement',
-        # Statements.CashFlow: 'cash-flow-statement'
-    }
-    return d[statement]
-
-
 # TODO: get years dynamically
 def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
                    statement: Statements = Statements.Income,
@@ -156,30 +102,3 @@ def get_ticker_list() -> List[str]:
         return ticker_list_resp[1]
     else:
         logging.error('failed to load ticker list')
-
-
-def get_prices(ticker: str, start: datetime, end: datetime) -> List:
-    # date format: 2018 - 03 - 12
-    start_str = start.strftime('%Y-%m-%d')
-    end_str = end.strftime('%Y-%m-%d')
-    url = f'{BASE_URL_V3}/historical-price-full/{ticker}'
-    params ={
-        'from': start_str,
-        'to': end_str,
-        'apikey': API_KEY
-    }
-    resp = get_cached_url(url, params)
-    return resp.get('historical', [])
-
-
-def get_symbols():
-    symbols = []
-    nasdaq_symbol_pos = -1
-    etf_pos = 4
-    with open(SYMBOLS_PATH) as csvfile:
-        reader = csv.reader(csvfile, delimiter='|')
-        next(reader)
-        for row in reader:
-            if row[etf_pos] == "N":  # not an ETF
-                symbols.append(row[nasdaq_symbol_pos])
-    return symbols
