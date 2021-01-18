@@ -7,5 +7,5 @@ CREATE TABLE IF NOT EXISTS sec_idx (
     company TEXT,
     report_type TEXT,
     url TEXT,
-    PRIMARY KEY (sec, year)
+    PRIMARY KEY (cik, year)
 );

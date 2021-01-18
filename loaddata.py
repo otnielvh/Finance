@@ -8,16 +8,10 @@ import os
 from typing import List
 
 from dataload import financial_data, ticker_price
-from common import utils, config
+from common import utils, config, data_access
 import pymysql
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
-
-redis_client = redis.Redis(
-    host=config.REDIS_HOST_NAME,
-    port=config.REDIS_PORT,
-    decode_responses=True
-)
 
 DBConnection = pymysql.connect(
     host=config.DB_HOST_NAME,
@@ -34,7 +28,7 @@ def fetch_company_data(ticker: str, year: int) -> None:
     Returns:
         None
     """
-    txt_url = redis_client.hget(f'{ticker}:info', f'txt_url:{year}')
+    txt_url = data_access.get_ticker_url(ticker, year)
     if txt_url:
         _fetch_company_data(ticker, year, txt_url)
     else:
@@ -51,10 +45,10 @@ def _fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
         None
     """
     try:
-        if redis_client.exists(utils.redis_key(ticker, year)):
+        if data_access.is_ticker_stored(ticker, year):
             logging.info(
                 f'data is already cached data for "{utils.redis_key(ticker, year)}"')
-            return  # redis_client.hgetall(utils.redis_key(ticker, year))
+            return
     except redis.exceptions.ConnectionError:
         logging.error("Redis isn't running")
         raise ConnectionRefusedError("Redis isn't running")
@@ -109,7 +103,7 @@ def fetch_year(year: int, ticker: str = None) -> None:
     Returns:
         None
     """
-    if ticker and redis_client.exists(utils.redis_key(ticker, year)):
+    if ticker and data_access.is_ticker_stored(ticker, year):
         logging.info(f'data is already cached data for "{utils.redis_key(ticker, year)}"')
         return
 
@@ -126,12 +120,12 @@ def fetch_year(year: int, ticker: str = None) -> None:
 
         # check if the index exists
         if result[0] == 0:
-            logging.info(f"File {filename} is not accessible, fetching from web")
+            logging.info(f"Index file for year {year} is not accessible, fetching from web")
             for q in range(1, 5):  # 1 to 4 inclusive
                 prepare_index(year, q)
 
     if ticker:
-        ticker_cik = redis_client.hget(f'{ticker}:info', 'cik')
+        ticker_cik = data_access.get_ticker_cik(ticker, year)
         with DBConnection.cursor() as cursor:
             # Create a new record
             sql = f'SELECT company, url FROM sec_idx where cik={ticker_cik}'
@@ -141,7 +135,7 @@ def fetch_year(year: int, ticker: str = None) -> None:
                 'company_name': result[0],
                 f'txt_url:{year}': result[1]
             }
-            redis_client.hset(f'{ticker}:info', mapping=ticker_info_hash)
+            data_access.store_ticker_info(ticker, ticker_info_hash)
             fetch_company_data(ticker, year)
     else:
         with DBConnection.cursor() as cursor:
@@ -149,13 +143,14 @@ def fetch_year(year: int, ticker: str = None) -> None:
             sql = f'SELECT company, url, cik FROM sec_idx where year={year}'
             cursor.execute(sql)
             for result in cursor.fetchall():
-                current_ticker = redis_client.hget(utils.REDIS_CIK2TICKER_KEY, result[2])
+                current_ticker = data_access.get_ticker_by_cik(result[2])
                 ticker_info_hash = {
                     'company_name': result[0],
                     f'txt_url:{year}': result[1]
                 }
-                redis_client.hset(f'{current_ticker}:info', mapping=ticker_info_hash)
+                data_access.store_ticker_info(current_ticker, ticker_info_hash)
                 fetch_company_data(ticker, year)
+
 
 def fetch_ticker_list() -> List[str]:
     """Fetch a list of tickers from sec, and store them in the DB.
@@ -164,14 +159,14 @@ def fetch_ticker_list() -> List[str]:
         a list of tickers
     """
     ticker_list = []
-    if not redis_client.exists(utils.REDIS_TICKER_SET):
+    if not data_access.is_ticker_list_exist():
         resp = requests.get(utils.TICKER_CIK_LIST_URL)
         ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
         for entry in ticker_cik_list_lines:
             ticker, cik = entry.strip().split()
             ticker = ticker.strip()
             cik = cik.strip()
-            store_ticker_cik_mapping(ticker, cik)
+            data_access.tore_ticker_cik_mapping(ticker, cik)
             ticker_list.append(ticker)
     return ticker_list
 
@@ -184,7 +179,7 @@ def fetch_ticker(ticker: str) -> None:
     Returns:
         None
     """
-    if not redis_client.sismember(utils.REDIS_TICKER_SET, ticker):
+    if not data_access.is_ticker_mapped(ticker):
         resp = requests.get(utils.TICKER_CIK_LIST_URL)
         ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
 
@@ -193,13 +188,7 @@ def fetch_ticker(ticker: str) -> None:
             other_ticker = other_ticker.strip()
             cik = cik.strip()
             if other_ticker == ticker:
-                store_ticker_cik_mapping(ticker, cik)
-
-
-def store_ticker_cik_mapping(ticker: str, cik: str) -> None:
-        redis_client.hset(f'{ticker}:info', 'cik', cik)
-        redis_client.hset(f'{utils.REDIS_CIK2TICKER_KEY}', cik, ticker)
-        redis_client.sadd(utils.REDIS_TICKER_SET, ticker)
+                data_access.store_ticker_cik_mapping(ticker, cik)
 
 
 def main():

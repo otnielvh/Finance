@@ -4,13 +4,13 @@ from typing import List, Dict
 import redis
 from bs4 import BeautifulSoup
 from dateutil import parser
-from common import utils, config
+from common import utils, config, data_access
 
-redis_client = redis.Redis(
-    host=config.REDIS_HOST_NAME,
-    port=config.REDIS_PORT,
-    decode_responses=True
-)
+# redis_client = redis.Redis(
+#     host=config.REDIS_HOST_NAME,
+#     port=config.REDIS_PORT,
+#     decode_responses=True
+# )
 
 ELEMENT_LIST = [
     # general
@@ -82,9 +82,10 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
         data['None'] = 0
         logging.info(f'Data for "{utils.redis_key(ticker, year)}" is empty')
 
-    redis_client.hset(utils.redis_key(ticker, year), mapping=data)
+    data_access.store_ticker_financials(ticker, year, data)
+    # redis_client.hset(utils.redis_key(ticker, year), mapping=data)
     logging.info(
-        f'successfully retrieved "{utils.redis_key(ticker, year)}" dataload from sec')
+        f'successfully retrieved {ticker} {year} from sec')
     end = time.time()
     logging.debug(f"elapsed time to parse: {(end - start)}")
     # return filtered_list
