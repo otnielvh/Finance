@@ -4,18 +4,18 @@ from typing import Dict, List
 import requests
 from datetime import datetime
 import time
-import redis
+# import redis
 import json
 import csv
-from common import config
+from common import data_access
 
 
-r = redis.Redis(
-    host=config.REDIS_HOST_NAME,
-    port=config.REDIS_PORT,
-    decode_responses=True
-
-)
+# r = redis.Redis(
+#     host=config.REDIS_HOST_NAME,
+#     port=config.REDIS_PORT,
+#     decode_responses=True
+#
+# )
 
 
 SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
@@ -83,7 +83,7 @@ def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
 
     fin_by_year = []
     for year in range(from_year, to_year + 1):
-        resp = r.hgetall(f'{ticker}:{year}')
+        resp = data_access.get_ticker_financials(ticker, year)
         resp['date'] = year
         fin_by_year.append(resp)
 
@@ -97,8 +97,4 @@ def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
 
 
 def get_ticker_list() -> List[str]:
-    ticker_list_resp = r.sscan(REDIS_TICKER_SET, 0, count=30 * 1000)
-    if ticker_list_resp[0] == 0:  # i.e. status OK
-        return ticker_list_resp[1]
-    else:
-        logging.error('failed to load ticker list')
+    return data_access.get_ticker_list()

@@ -1,7 +1,8 @@
-from common.utils import Period, get_price
+from common.utils import Period
 from datetime import datetime
 from algorithm.score import ScoreExample
 from algorithm import data as data
+from common.data_access import get_price
 
 TICKER_LIST = ['cpe', 'payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn',
                'tsla', 'sedg', 'now', 'teva', 'vrtx', 'PFG', 'RCL', 'HAL', 'NVS', 'LIN', 'c', 'rtx']
