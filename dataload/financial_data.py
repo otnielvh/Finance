@@ -29,7 +29,7 @@ ELEMENT_LIST = [
     'us-gaap:grossprofit',
 
     # expense
-    'us-gaap:generalandadministrativeexpense',
+    'us-gaap:GeneralAndadministrativeExpense',
     'us-gaap:sellinggeneralandadministrativeexpense',
 
     'us-gaap:researchanddevelopmentexpense',
@@ -62,6 +62,7 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
 
     # get from the report the focus date of the report
     report_date_focus = soup.find("dei:documentfiscalperiodfocus")
+    shares = soup.find("dei:entitycommonstocksharesoutstanding")
     if report_date_focus is None:
         return []
 
@@ -69,18 +70,21 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
     filtered_list = []
     for key in keywords:
         element_list = soup.find_all(
-            key, {"contextref": report_date_focus['contextref']})
+            str.lower(key), {"contextref": report_date_focus['contextref']})
         for element in element_list:
             element_dict = parse_element(soup, element)
             if element_dict:
                 filtered_list.append(element_dict)
+
+    element_dict = parse_element(soup, shares, False)
+    filtered_list.append(element_dict)
 
     # prepare the data for saving
     data = {d.get('name'): d.get('value') for d in filtered_list}
     # TBD should this be save? We need to filter what is not interesting for us
     if not data:
         data['None'] = 0
-        logging.info(f'Data for "{utils.redis_key(ticker, year)}" is empty')
+        logging.info(f'Data for {ticker}  {year} is empty')
 
     data_access.store_ticker_financials(ticker, year, data)
     # redis_client.hset(utils.redis_key(ticker, year), mapping=data)
@@ -212,7 +216,7 @@ def retrieve_date(soup, each):
     return "NA"
 
 
-def parse_element(soup, element) -> Dict:
+def parse_element(soup: BeautifulSoup, element, check_is_sub_entity: bool = True) -> Dict:
     """
     For a discovered XBRL tagged element, go through, retrieve its name
     and value and associated metadata.
@@ -227,10 +231,11 @@ def parse_element(soup, element) -> Dict:
         return ({})
 
     # check if this is a subentity
-    isSubEntity = soup.find(
-        id=element.attrs['contextref']).find("xbrli:segment")
-    if isSubEntity:
-        return ({})
+    if check_is_sub_entity:
+        isSubEntity = soup.find(
+            id=element.attrs['contextref']).find("xbrli:segment")
+        if isSubEntity:
+            return ({})
 
     element_dict = {}
 
