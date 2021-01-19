@@ -1,21 +1,7 @@
-import logging
 from common.utils import *
 from typing import Dict, List
-import requests
-from datetime import datetime
-import time
-# import redis
-import json
-import csv
 from common import data_access
-
-
-# r = redis.Redis(
-#     host=config.REDIS_HOST_NAME,
-#     port=config.REDIS_PORT,
-#     decode_responses=True
-#
-# )
+import loaddata
 
 
 SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
@@ -81,13 +67,16 @@ def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
                    statement: Statements = Statements.Income,
                    period: Period = Period.Year) -> List[Income]:
 
+    resp = loaddata.get_ticker_data(ticker, from_year, to_year)
     fin_by_year = []
-    for year in range(from_year, to_year + 1):
-        resp = data_access.get_ticker_financials(ticker, year)
-        resp['date'] = year
-        fin_by_year.append(resp)
+    for year in range(from_year, to_year):
+        element = resp.get(str(year))
+        if element:
+            element['date'] = str(year)
+            fin_by_year.append(element)
 
     financial_list = []
+
     if statement == Statements.Income:
         financial_list = [dict2income(d) for d in fin_by_year]
     elif statement == Statements.BalanceSheet:

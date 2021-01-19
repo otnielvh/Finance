@@ -79,6 +79,10 @@ def store_ticker_volume(ticker: str, timestamp: int, value: float) -> None:
         logging.debug(error)
 
 
+def is_ticker_price_exists(ticker: str):
+    return redis_client.exists(f'{ticker}:price')
+
+
 def get_prices(ticker: str, start: datetime, end: datetime) -> List[Tuple[datetime, float]]:
     """
     :param ticker:
