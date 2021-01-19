@@ -47,7 +47,7 @@ def _fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
     try:
         if data_access.is_ticker_stored(ticker, year):
             logging.info(
-                f'data is already cached data for "{utils.redis_key(ticker, year)}"')
+                f'data is already cached data for {ticker} {year}"')
             return
     except redis.exceptions.ConnectionError:
         logging.error("Redis isn't running")
@@ -104,7 +104,7 @@ def fetch_year(year: int, ticker: str = None) -> None:
         None
     """
     if ticker and data_access.is_ticker_stored(ticker, year):
-        logging.info(f'data is already cached data for "{utils.redis_key(ticker, year)}"')
+        logging.info(f'data is already cached data for {ticker} {year}')
         return
 
     filename = f'{config.ASSETS_DIR}/{year}-master.idx'
