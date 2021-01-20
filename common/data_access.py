@@ -1,4 +1,5 @@
 import logging
+import pymysql
 from datetime import datetime, timedelta
 from typing import List, Tuple
 
@@ -9,6 +10,13 @@ redis_client = redis.Redis(
     host=config.REDIS_HOST_NAME,
     port=config.REDIS_PORT,
     decode_responses=True
+)
+
+DBConnection = pymysql.connect(
+    host=config.DB_HOST_NAME,
+    user=config.DB_USER,
+    passwd=config.DB_PASSWORD,
+    db=config.DB_NAME
 )
 
 REDIS_TICKER_SET = 'ticker_set'
@@ -37,6 +45,13 @@ def get_ticker_financials(ticker: str, year: int):
 
 def is_ticker_stored(ticker: str, year: int):
     return redis_client.exists(financials_key(ticker, year))
+
+
+def commit_ticker_data():
+    try:
+        return redis_client.bgsave()
+    except redis.ResponseError as error:
+        logging.debug(error)
 
 # Ticker info
 
@@ -139,3 +154,43 @@ def get_ticker_list() -> List[str]:
             logging.error('failed to load ticker list')
     except redis.ResponseError as error:
         logging.debug(error)
+
+
+# Index
+def store_index(data: List[str], year, filling: str) -> None:
+    with DBConnection.cursor() as cursor:
+        # Create a new record
+        sql = "INSERT INTO `sec_idx` (`cik`, `year`, `company`, `report_type`, `url`) VALUES (%s, %s, %s, %s, %s)"
+        for item in data:
+            if filling in item:
+                values = item.split('|')
+                try:
+                    cursor.execute(sql, (values[0], int(year), values[1], values[2], values[4]))
+                # TBD - some companies have multiple 10-K
+                except pymysql.err.IntegrityError:
+                    pass
+    DBConnection.commit()
+
+
+def is_index_stored(year: int) -> bool:
+    with DBConnection.cursor() as cursor:
+        sql = f'SELECT COUNT(*) FROM {config.DB_NAME}.sec_idx where year={year}'
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        return result[0]
+
+
+def get_index_row_by_cik(cik: int) -> List[str]:
+    with DBConnection.cursor() as cursor:
+        # Create a new record
+        sql = f'SELECT company, url FROM sec_idx where cik={cik}'
+        cursor.execute(sql)
+        return cursor.fetchone()
+
+
+def get_index_by_year(year: int) -> List[List[str]]:
+    with DBConnection.cursor() as cursor:
+        # Create a new record
+        sql = f'SELECT company, url, cik FROM sec_idx where year={year}'
+        cursor.execute(sql)
+        return cursor.fetchall()
