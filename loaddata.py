@@ -68,12 +68,11 @@ def prepare_index(year: int, quarter: int) -> None:
     Returns:
         None
     """
-    filling = '|10-K|'
-    download = requests.get(
-        f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/QTR{quarter}/master.idx').content
+    filing = '|10-K|'
+    download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/QTR{quarter}/master.idx').content
     decoded = download.decode("ISO-8859-1").split('\n')
 
-    data_access.store_index(decoded, year, filling)
+    data_access.store_index(decoded, year, filing)
     logging.info(f"Inserted year {year} qtr {quarter} to DB")
 
 
@@ -90,10 +89,9 @@ def fetch_year(year: int, ticker: str = None) -> None:
         logging.info(f'data is already cached data for {ticker} {year}')
         return
 
-    filename = f'{config.ASSETS_DIR}/{year}-master.idx'
-
-    if not os.path.isdir(config.ASSETS_DIR):
-        os.mkdir(config.ASSETS_DIR)
+    # TODO: skip in a better way. For now skip these ETFs manually
+    if ticker in ['spy', 'qqq']:
+        return
 
     # check if the index exists
     is_ixd_stored = data_access.is_index_stored(year)
@@ -139,7 +137,7 @@ def fetch_ticker_list() -> List[str]:
             ticker, cik = entry.strip().split()
             ticker = ticker.strip()
             cik = cik.strip()
-            data_access.tore_ticker_cik_mapping(ticker, cik)
+            data_access.store_ticker_cik_mapping(ticker, cik)
             ticker_list.append(ticker)
     return ticker_list
 
@@ -160,8 +158,41 @@ def fetch_ticker(ticker: str) -> None:
             other_ticker, cik = entry.strip().split()
             other_ticker = other_ticker.strip()
             cik = cik.strip()
+            data_access.store_ticker_cik_mapping(other_ticker, cik)
             if other_ticker == ticker:
-                data_access.store_ticker_cik_mapping(ticker, cik)
+                logging.info(f'Successfully mapped {ticker} to cik {cik}')
+
+
+def get_ticker_data(ticker: str, start_year: int, end_year: int):
+    """
+    Could be called externally to get all data known about that ticker.
+    :param ticker:
+    :param start_year:
+    :param end_year: inclusive
+    :return:
+    """
+    data = {}
+
+    fetch_ticker(ticker)
+
+    if not data_access.is_ticker_price_exists(ticker):
+        ticker_price.store_ticker(ticker)
+
+    data['volume'] = {'volume': 'NA'}
+    # TODO: use more accurate dates
+    start_year_datetime = datetime.fromisoformat(f'{start_year}-01-01')
+    end_year_datetime = datetime.fromisoformat(f'{end_year}-12-30')
+    data['price'] = data_access.get_prices(ticker, start_year_datetime, end_year_datetime)
+
+    for year in range(start_year, end_year + 1):
+        fetch_year(year, ticker)
+
+        entry = data_access.get_ticker_financials(ticker, year)
+        if not entry:
+            logging.error(f"Could not retrieve data for '{ticker} {year}' ")
+        data[str(year)] = entry
+
+    return data
 
 
 def main():
