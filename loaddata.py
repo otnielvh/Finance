@@ -8,7 +8,7 @@ import os
 from typing import List
 
 from dataload import financial_data, ticker_price
-from common import utils, config, data_access
+from common import utils, data_access
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
