@@ -1,10 +1,11 @@
+from datetime import datetime
+
 import requests
 import argparse
 import bs4 as bs
 import redis
 import logging
 import sys
-import os
 from typing import List
 
 from dataload import financial_data, ticker_price
