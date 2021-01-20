@@ -44,7 +44,10 @@ def get_ticker_financials(ticker: str, year: int):
 
 
 def is_ticker_stored(ticker: str, year: int):
-    return redis_client.exists(financials_key(ticker, year))
+    try:
+        return redis_client.exists(financials_key(ticker, year))
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def commit_ticker_data():
@@ -64,15 +67,21 @@ def store_ticker_info(ticker: str, data: dict):
     try:
         redis_client.hset(info_key(ticker), mapping=data)
     except redis.ResponseError as error:
-        logging.debug(error)
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def get_ticker_url(ticker: str, year: int):
-    return redis_client.hget(info_key(ticker), f'txt_url:{year}')
+    try:
+        return redis_client.hget(info_key(ticker), f'txt_url:{year}')
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
-def get_ticker_cik(ticker: str, year: int):
-    return redis_client.hget(info_key(ticker), 'cik')
+def get_ticker_cik(ticker: str):
+    try:
+        return redis_client.hget(info_key(ticker), 'cik')
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 # Ticker price
@@ -83,7 +92,7 @@ def store_ticker_price(ticker: str, timestamp: int, value: float) -> None:
         redis_client.execute_command(
             "TS.ADD", f"{ticker}:price", timestamp, value)
     except redis.ResponseError as error:
-        logging.debug(error)
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def store_ticker_volume(ticker: str, timestamp: int, value: float) -> None:
@@ -91,11 +100,14 @@ def store_ticker_volume(ticker: str, timestamp: int, value: float) -> None:
         redis_client.execute_command(
             "TS.ADD", f"{ticker}:volume", timestamp, value)
     except redis.ResponseError as error:
-        logging.debug(error)
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def is_ticker_price_exists(ticker: str):
-    return redis_client.exists(f'{ticker}:price')
+    try:
+        return redis_client.exists(f'{ticker}:price')
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def get_prices(ticker: str, start: datetime, end: datetime) -> List[Tuple[datetime, float]]:
@@ -105,11 +117,14 @@ def get_prices(ticker: str, start: datetime, end: datetime) -> List[Tuple[dateti
     :param end:
     :return: list of (datetime, price) tuples
     """
-    start_time = int(start.timestamp())
-    end_time = int(end.timestamp())
-    redis_response = redis_client.execute_command("TS.RANGE", f"{ticker}:price", start_time, end_time)
-    response_list = [(datetime.fromtimestamp(e[0]), float(e[1])) for e in redis_response]
-    return response_list
+    try:
+        start_time = int(start.timestamp())
+        end_time = int(end.timestamp())
+        redis_response = redis_client.execute_command("TS.RANGE", f"{ticker}:price", start_time, end_time)
+        response_list = [(datetime.fromtimestamp(e[0]), float(e[1])) for e in redis_response]
+        return response_list
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def get_price(ticker: str, date: datetime) -> float:
@@ -121,28 +136,40 @@ def get_price(ticker: str, date: datetime) -> float:
     """
     start_time = date - timedelta(weeks=1)
     price_res = get_prices(ticker, start_time, date)
-    if len(price_res) and len(price_res[-1]):
+    if price_res is not None and len(price_res) and len(price_res[-1]):
         return get_prices(ticker, start_time, date)[-1][-1]
     else:
         return 0
 
 
 def get_ticker_by_cik(ticker):
-    return redis_client.hget(REDIS_CIK2TICKER_KEY, ticker)
+    try:
+        return redis_client.hget(REDIS_CIK2TICKER_KEY, ticker)
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def store_ticker_cik_mapping(ticker: str, cik: str) -> None:
-    redis_client.hset(info_key(ticker), 'cik', cik)
-    redis_client.hset(f'{REDIS_CIK2TICKER_KEY}', cik, ticker)
-    redis_client.sadd(REDIS_TICKER_SET, ticker)
+    try:
+        redis_client.hset(info_key(ticker), 'cik', cik)
+        redis_client.hset(f'{REDIS_CIK2TICKER_KEY}', cik, ticker)
+        redis_client.sadd(REDIS_TICKER_SET, ticker)
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def is_ticker_mapped(ticker: str) -> bool:
-    return redis_client.sismember(REDIS_TICKER_SET, ticker)
+    try:
+        return redis_client.sismember(REDIS_TICKER_SET, ticker)
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def is_ticker_list_exist() -> bool:
-    return redis_client.exists(REDIS_TICKER_SET)
+    try:
+        return redis_client.exists(REDIS_TICKER_SET)
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
 
 
 def get_ticker_list() -> List[str]:
