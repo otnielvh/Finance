@@ -1,16 +1,9 @@
 import logging
 import time
 from typing import List, Dict
-import redis
 from bs4 import BeautifulSoup
 from dateutil import parser
-from common import utils, config, data_access
-
-# redis_client = redis.Redis(
-#     host=config.REDIS_HOST_NAME,
-#     port=config.REDIS_PORT,
-#     decode_responses=True
-# )
+from common import data_access
 
 ELEMENT_LIST = [
     # general

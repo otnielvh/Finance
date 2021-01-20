@@ -6,5 +6,6 @@ __pycache__/
 venv
 *.idx
 data/mysql/data/**
+*.rdb
 
 

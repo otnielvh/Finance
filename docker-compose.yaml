@@ -6,7 +6,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - $PWD/data/redis:/var/lib/redis
+      - $PWD/data/redis:/data
 #      - $PWD/redis.conf:/usr/local/etc/redis/redis.conf
   mysql:
     container_name: fin_mysql

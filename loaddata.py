@@ -9,16 +9,9 @@ from typing import List
 
 from dataload import financial_data, ticker_price
 from common import utils, config, data_access
-import pymysql
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
 
-DBConnection = pymysql.connect(
-    host=config.DB_HOST_NAME,
-    user=config.DB_USER,
-    passwd=config.DB_PASSWORD,
-    db=config.DB_NAME
-)
 
 def fetch_company_data(ticker: str, year: int) -> None:
     """Fetch the data for the specified company and year from sec
@@ -75,24 +68,14 @@ def prepare_index(year: int, quarter: int) -> None:
     Returns:
         None
     """
-    filing = '|10-K|'
+    filling = '|10-K|'
     download = requests.get(
         f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/QTR{quarter}/master.idx').content
     decoded = download.decode("ISO-8859-1").split('\n')
 
-    with DBConnection.cursor() as cursor:
-        # Create a new record
-        sql = "INSERT INTO `sec_idx` (`cik`, `year`, `company`, `report_type`, `url`) VALUES (%s, %s, %s, %s, %s)"
-        for item in decoded:
-            if filing in item:
-                values = item.split('|')
-                try:
-                    cursor.execute(sql, (values[0], int(year), values[1], values[2], values[4]))
-                # TBD - some companies have multiple 10-K
-                except pymysql.err.IntegrityError:
-                    pass
+    data_access.store_index(decoded, year, filling)
     logging.info(f"Inserted year {year} qtr {quarter} to DB")
-    DBConnection.commit()
+
 
 def fetch_year(year: int, ticker: str = None) -> None:
     """Fetch stocks data according to the passed year
@@ -112,44 +95,34 @@ def fetch_year(year: int, ticker: str = None) -> None:
     if not os.path.isdir(config.ASSETS_DIR):
         os.mkdir(config.ASSETS_DIR)
 
-    with DBConnection.cursor() as cursor:
-        # Create a new record
-        sql = f'SELECT COUNT(*) FROM {config.DB_NAME}.sec_idx where year={year}'
-        cursor.execute(sql)
-        result = cursor.fetchone()
-
-        # check if the index exists
-        if result[0] == 0:
-            logging.info(f"Index file for year {year} is not accessible, fetching from web")
-            for q in range(1, 5):  # 1 to 4 inclusive
-                prepare_index(year, q)
+    # check if the index exists
+    is_ixd_stored = data_access.is_index_stored(year)
+    if not is_ixd_stored:
+        logging.info(f"Index file for year {year} is not accessible, fetching from web")
+        for q in range(1, 5):  # 1 to 4 inclusive
+            prepare_index(year, q)
 
     if ticker:
         ticker_cik = data_access.get_ticker_cik(ticker, year)
-        with DBConnection.cursor() as cursor:
-            # Create a new record
-            sql = f'SELECT company, url FROM sec_idx where cik={ticker_cik}'
-            cursor.execute(sql)
-            result = cursor.fetchone()
+        result = data_access.get_index_row_by_cik(ticker_cik)
+        ticker_info_hash = {
+            'company_name': result[0],
+            f'txt_url:{year}': result[1]
+        }
+        data_access.store_ticker_info(ticker, ticker_info_hash)
+        fetch_company_data(ticker, year)
+        data_access.commit_ticker_data()
+    else:
+        idx = data_access.get_index_by_year(year)
+        for result in idx:
+            current_ticker = data_access.get_ticker_by_cik(result[2])
             ticker_info_hash = {
                 'company_name': result[0],
                 f'txt_url:{year}': result[1]
             }
-            data_access.store_ticker_info(ticker, ticker_info_hash)
+            data_access.store_ticker_info(current_ticker, ticker_info_hash)
             fetch_company_data(ticker, year)
-    else:
-        with DBConnection.cursor() as cursor:
-            # Create a new record
-            sql = f'SELECT company, url, cik FROM sec_idx where year={year}'
-            cursor.execute(sql)
-            for result in cursor.fetchall():
-                current_ticker = data_access.get_ticker_by_cik(result[2])
-                ticker_info_hash = {
-                    'company_name': result[0],
-                    f'txt_url:{year}': result[1]
-                }
-                data_access.store_ticker_info(current_ticker, ticker_info_hash)
-                fetch_company_data(ticker, year)
+        data_access.commit_ticker_data()
 
 
 def fetch_ticker_list() -> List[str]:
