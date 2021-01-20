@@ -1,14 +1,5 @@
-import redis
 import yfinance as yf
-from common import config, data_access
-import logging
-
-
-# redis_client = redis.Redis(
-#     host=config.REDIS_HOST_NAME,
-#     port=config.REDIS_PORT,
-#     decode_responses=True
-# )
+from common import data_access
 
 
 def store_ticker(ticker: str) -> None:
@@ -18,10 +9,4 @@ def store_ticker(ticker: str) -> None:
     for index, row in price_history.iterrows():
         data_access.store_ticker_price(ticker, int(index.timestamp()), row['Close'])
         data_access.store_ticker_volume(ticker, int(index.timestamp()), row['Volume'])
-        # try:
-        #     redis_client.execute_command(
-        #         "TS.ADD", f"{ticker}:price", int(index.timestamp()), row['Close'])
-        #     redis_client.execute_command(
-        #         "TS.ADD", f"{ticker}:volume", int(index.timestamp()), row['Volume'])
-        # except redis.ResponseError as error:
-        #     logging.debug(error)
+    data_access.commit_ticker_data()
