@@ -1,19 +1,28 @@
 from common.utils import Period
 from datetime import datetime
 from algorithm.score import ScoreExample
-from algorithm import data as data
 from common.data_access import get_price
 
-TICKER_LIST = ['cpe', 'payc', 'aal', 'pg', 'aig', 'rtx', 'CVX', 'czr', 'SPLK', 'aapl', 'goog', 'msft', 'amzn',
-               'tsla', 'sedg', 'now', 'teva', 'vrtx', 'PFG', 'RCL', 'HAL', 'NVS', 'LIN', 'c', 'rtx']
+TICKER_LIST = [
+    'splk',
+    'aapl',
+    'goog',
+    'msft',
+    'amzn',
+    'tsla',
+    'sedg',
+    'now',
+    'teva',
+    'vrtx',
+]
 
 INDEX_LIST = ['qqq', 'spy']
 PERIOD = Period.Year
 
-BUY_DATE = datetime(2016, 2, 17)
-SELL_DATE = datetime(2019, 4, 26)
-FINANCE_START_DATE = datetime(2012, 2, 1)
-FINANCE_END_DATE = datetime(2016, 2, 1)
+BUY_DATE = datetime(2018, 2, 1)
+SELL_DATE = datetime(2020, 4, 26)
+FINANCE_START_DATE = datetime(2016, 2, 1)
+FINANCE_END_DATE = datetime(2018, 2, 1)
 
 
 def gain_from_buy_and_sell(ticker: str, start: datetime, end: datetime) -> float:
@@ -26,7 +35,7 @@ def gain_from_buy_and_sell(ticker: str, start: datetime, end: datetime) -> float
 
 
 def main():
-    algo_score = ScoreExample(data.get_ticker_list(), FINANCE_START_DATE, FINANCE_END_DATE)
+    algo_score = ScoreExample(TICKER_LIST, FINANCE_START_DATE, FINANCE_END_DATE)
     algo_score.compute_score()
     print("successfully retrieved dataload")
 
