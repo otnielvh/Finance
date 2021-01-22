@@ -1,4 +1,4 @@
-from common.utils import Period
+from algorithm.utils import Period
 from datetime import datetime
 from algorithm.score import ScoreExample
 from common.data_access import get_price
@@ -14,6 +14,9 @@ TICKER_LIST = [
     'now',
     'teva',
     'vrtx',
+    'okta',
+    'ddog',
+    'nvda'
 ]
 
 INDEX_LIST = ['qqq', 'spy']
@@ -38,12 +41,13 @@ def main():
     algo_score = ScoreExample(TICKER_LIST, FINANCE_START_DATE, FINANCE_END_DATE)
     algo_score.compute_score()
     print("successfully retrieved dataload")
+    column_spacing = '\t\t'
 
     # compare high score stocks to lows score stocks performance
-    title = 'ticker\tgain\t\t'
+    title = f'ticker\tgain\t{column_spacing}'
     for name in algo_score.score_list[0]._asdict().keys():
         if name != 'ticker':
-            title += f'{name}\t\t'
+            title += f'{name}{column_spacing}'
     print(title)
 
     sum_gain = 0
@@ -52,17 +56,18 @@ def main():
         try:
             gain = gain_from_buy_and_sell(ticker, BUY_DATE, SELL_DATE)
             sum_gain += gain
-            scoreLine = f'{ticker:>4}\t{gain*100:>7.2f}%\t\t'
+            scoreLine = f'{ticker:>5}\t{gain*100:>7.2f}%'
             for name, value in scoreEntry._asdict().items():
                 if name != 'ticker':
-                    if value < 10 ** 3:
-                        scoreLine += f'{value:6.2f}  \t\t'
-                    elif value < 10 ** 6:
-                        scoreLine += f'{value/(10 ** 3):6.0f}K\t\t'
-                    elif value < 10 ** 9:
-                        scoreLine += f'{value/(10 ** 6):6.0f}M\t\t'
+                    s = len(name)
+                    if abs(value) < 10 ** 3:
+                        scoreLine += f'{value:{s}.2f} {column_spacing}'
+                    elif abs(value) < 10 ** 6:
+                        scoreLine += f'{value/(10 ** 3):{s}.0f}K{column_spacing}'
+                    elif abs(value) < 10 ** 9:
+                        scoreLine += f'{value/(10 ** 6):{s}.0f}M{column_spacing}'
                     else:
-                        scoreLine += f'{value/(10 ** 9):6.0f}B\t\t'
+                        scoreLine += f'{value/(10 ** 9):{s}.0f}B{column_spacing}'
             print(scoreLine)
         except Exception as e:
             print(f'Error handling {ticker!r}: {e}')

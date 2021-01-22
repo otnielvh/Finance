@@ -1,11 +1,12 @@
 import logging
-from common.utils import TickerData, Period
+from algorithm.utils import TickerData
 from typing import List
 from datetime import datetime
-from algorithm import data as data
-from common.utils import Statements
+from algorithm.utils import Statements, Income, dict2income, dict2balance_sheet
 from operator import itemgetter
 from collections import namedtuple
+from algorithm.score_functions import average, avg_growth
+import loaddata
 
 ScoreEntry = namedtuple('Score', ['ticker', 'grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
                                   'netIncome', 'mktCap'])
@@ -19,8 +20,8 @@ class BaseScore:
         self.end_date = end_date
         self.score_list = []
 
-    def filter_by_date(self, income_list: List[data.Income]) -> List[data.Income]:
-        new_income_list: List[data.Income] = []
+    def filter_by_date(self, income_list: List[Income]) -> List[Income]:
+        new_income_list: List[Income] = []
         for income in income_list:
             try:
                 new_income_list.append(income)
@@ -57,12 +58,12 @@ class BaseScore:
         financial_dict = {}
         try:
             for statement_type in [Statements.Income, Statements.BalanceSheet]:
-                data_by_year = data.get_financials(ticker, statement=statement_type, period=Period.Year)
+                data_by_year = get_financials(ticker, statement=statement_type)
                 data_until_today = self.filter_by_date(data_by_year)
                 financial_dict[statement_type] = data_until_today
 
             ticker_data = TickerData(
-                profile=data.get_financials(ticker, statement=Statements.Profile, period=Period.Year),
+                profile=get_financials(ticker, statement=Statements.Profile),
                 income_list=financial_dict[Statements.Income],
                 balance_sheet_list=financial_dict[Statements.BalanceSheet],
                 # cash_flow_list=financial_dict[Statements.CashFlow]
@@ -132,31 +133,23 @@ class ScoreExample(BaseScore):
         self.score_list = filtered_list
 
 
-def avg_growth(ticker: str, my_list: List, field: str) -> float:
-    acc_growth = 1
-    count = 0
-    for i in range(len(my_list) - 1):
-        start_data = my_list[i]
-        end_data = my_list[i+1]
-        try:
-            start = start_data._asdict().get(field)
-            end = end_data._asdict().get(field)
-            if start and end:
-                acc_growth += (float(end) / float(start)) - 1
-                count += 1
-            else:
-                logging.info(f'ticker {ticker!r} {field} is None or zero for {start_data.Date} or {end_data.Date}')
-        except Exception as e:
-            logging.error(f'failed to process ticker {ticker} field {field} -> {e}')
-    return 1 + (acc_growth / count) if count > 0 else 0
+# TODO: get years dynamically
+def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
+                   statement: Statements = Statements.Income,) -> List[Income]:
+    # TODO: Remove access to DAL
+    resp = loaddata.get_ticker_data(ticker, from_year, to_year)
+    fin_by_year = []
+    for year in range(from_year, to_year):
+        element = resp.get(str(year))
+        if element:
+            element['date'] = str(year)
+            fin_by_year.append(element)
 
+    financial_list = []
 
-def average(my_list: List, field: str) -> float:
-    my_sum: float = 0
-    count = 0
-    for i in range(len(my_list)):
-        data_point = my_list[i]._asdict().get(field)
-        if data_point:
-            my_sum += float(data_point)
-            count += 1
-    return my_sum / count if count else 0.0
+    if statement == Statements.Income:
+        financial_list = [dict2income(d) for d in fin_by_year]
+    elif statement == Statements.BalanceSheet:
+        financial_list = [dict2balance_sheet(d) for d in fin_by_year]
+
+    return financial_list

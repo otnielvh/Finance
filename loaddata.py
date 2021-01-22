@@ -9,9 +9,10 @@ import sys
 from typing import List
 
 from dataload import financial_data, ticker_price
-from common import utils, data_access
+from common import data_access
 
 SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
+TICKER_CIK_LIST_URL = 'https://www.sec.gov/include/ticker.txt'
 
 
 def fetch_company_data(ticker: str, year: int) -> None:
@@ -102,7 +103,7 @@ def fetch_year(year: int, ticker: str = None) -> None:
             prepare_index(year, q)
 
     if ticker:
-        ticker_cik = data_access.get_ticker_cik(ticker, year)
+        ticker_cik = data_access.get_ticker_cik(ticker)
         result = data_access.get_index_row_by_cik(ticker_cik)
         ticker_info_hash = {
             'company_name': result[0],
@@ -132,7 +133,7 @@ def fetch_ticker_list() -> List[str]:
     """
     ticker_list = []
     if not data_access.is_ticker_list_exist():
-        resp = requests.get(utils.TICKER_CIK_LIST_URL)
+        resp = requests.get(TICKER_CIK_LIST_URL)
         ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
         for entry in ticker_cik_list_lines:
             ticker, cik = entry.strip().split()
@@ -152,7 +153,7 @@ def fetch_ticker(ticker: str) -> None:
         None
     """
     if not data_access.is_ticker_mapped(ticker):
-        resp = requests.get(utils.TICKER_CIK_LIST_URL)
+        resp = requests.get(TICKER_CIK_LIST_URL)
         ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
 
         for entry in ticker_cik_list_lines:
