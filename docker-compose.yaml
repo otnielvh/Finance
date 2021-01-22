@@ -7,7 +7,6 @@ services:
       - "6379:6379"
     volumes:
       - $PWD/data/redis:/data
-#      - $PWD/redis.conf:/usr/local/etc/redis/redis.conf
   mysql:
     container_name: fin_mysql
     image: mysql
@@ -19,3 +18,15 @@ services:
     volumes:
        - $PWD/data/mysql/data:/var/lib/mysql
        - $PWD/data/mysql/init:/docker-entrypoint-initdb.d/:ro
+  algo:
+    container_name: fin_algo
+    build: .
+    environment:
+      - MYSQL_URL=fin_mysql
+      - REDIS_URL=fin_redis
+    ports:
+      - "5000:5000"
+
+networks:
+  default:
+    name: fin-net
