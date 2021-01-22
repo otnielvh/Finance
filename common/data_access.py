@@ -207,10 +207,10 @@ def is_index_stored(year: int) -> bool:
         return result[0]
 
 
-def get_index_row_by_cik(cik: int) -> List[str]:
+def get_index_row_by_cik(cik: int, year: int) -> List[str]:
     with DBConnection.cursor() as cursor:
         # Create a new record
-        sql = f'SELECT company, url FROM sec_idx where cik={cik}'
+        sql = f'SELECT company, url FROM sec_idx where cik={cik} and year={year}'
         cursor.execute(sql)
         return cursor.fetchone()
 
