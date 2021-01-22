@@ -169,7 +169,7 @@ def is_ticker_list_exist() -> bool:
     try:
         return redis_client.exists(REDIS_TICKER_SET)
     except redis.ResponseError as error:
-        logging.debug(f'{error} ticker: {ticker}')
+        logging.debug(f'{error}')
 
 
 def get_ticker_list() -> List[str]:

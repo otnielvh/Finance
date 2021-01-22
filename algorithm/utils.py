@@ -1,8 +1,41 @@
-from common.utils import *
-from typing import Dict, List
-from common import data_access
-import loaddata
+from enum import Enum
+from collections import namedtuple
+from typing import Dict
 
+
+class Period(Enum):
+    Year = 1
+    Quarter = 2
+
+
+class Statements(Enum):
+    Profile = 1
+    Income = 2
+    BalanceSheet = 3
+    # CashFlow = 4
+    # KeyMetrics = 5
+
+
+Profile = namedtuple('Profile', ['mktCap', 'lastDiv', 'country', 'industry', 'currency', 'exchange'])
+
+Income = namedtuple('Income', ['Date', 'Revenue', 'CostOfRevenue', 'GrossProfit', 'RnDExpenses',
+                               'GAExpense', 'SaMExpense', 'OperatingExpenses',
+                               'OperatingIncome', 'InterestExpense',
+                               'NetIncome', 'EBITDA', 'EBITratio'])
+
+BalanceSheet = namedtuple('BalanceSheet',
+                          ['Date', 'CashAndCashEquivalents', 'ShortTermInvestments', 'Receivables',
+                           'PropertyPlantAndEquipmentNet', 'GoodwillAndIntangibleAssets',
+                           'LongTermInvestments', 'TaxAssets', 'TotalNonCurrentAssets', 'TotalAssets', 'Payables',
+                           'ShortTermDebt', 'TotalDebt', 'TotalLiabilities',
+                           'DeferredRevenue', 'NetDebt'])
+
+
+# CashFlow = namedtuple('CashFlow', ['Date'])
+
+# KeyMetrics = namedtuple('KeyMetrics', ['Date', 'MarketCap', 'Dividend'])
+
+TickerData = namedtuple('TickerData', ['profile', 'income_list', 'balance_sheet_list'])
 
 SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'NYSE', 'NYSE American', 'NYSE Arca',
                              'NYSEArca', 'Nasdaq', 'Nasdaq Global Select', 'NasdaqGM', 'NasdaqGS',
@@ -62,28 +95,3 @@ def dict2balance_sheet(d: Dict) -> BalanceSheet:
     )
 
 
-# TODO: get years dynamically
-def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
-                   statement: Statements = Statements.Income,
-                   period: Period = Period.Year) -> List[Income]:
-
-    resp = loaddata.get_ticker_data(ticker, from_year, to_year)
-    fin_by_year = []
-    for year in range(from_year, to_year):
-        element = resp.get(str(year))
-        if element:
-            element['date'] = str(year)
-            fin_by_year.append(element)
-
-    financial_list = []
-
-    if statement == Statements.Income:
-        financial_list = [dict2income(d) for d in fin_by_year]
-    elif statement == Statements.BalanceSheet:
-        financial_list = [dict2balance_sheet(d) for d in fin_by_year]
-
-    return financial_list
-
-
-def get_ticker_list() -> List[str]:
-    return data_access.get_ticker_list()
