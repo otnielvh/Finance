@@ -104,7 +104,7 @@ def fetch_year(year: int, ticker: str = None) -> None:
 
     if ticker:
         ticker_cik = data_access.get_ticker_cik(ticker)
-        result = data_access.get_index_row_by_cik(ticker_cik)
+        result = data_access.get_index_row_by_cik(ticker_cik, year)
         ticker_info_hash = {
             'company_name': result[0],
             f'txt_url:{year}': result[1]
