@@ -127,6 +127,23 @@ def get_prices(ticker: str, start: datetime, end: datetime) -> List[Tuple[dateti
         logging.debug(f'{error} ticker: {ticker}')
 
 
+def get_volumes(ticker: str, start: datetime, end: datetime) -> List[Tuple[datetime, float]]:
+    """
+    :param ticker:
+    :param start:
+    :param end:
+    :return: list of (datetime, price) tuples
+    """
+    try:
+        start_time = int(start.timestamp())
+        end_time = int(end.timestamp())
+        redis_response = redis_client.execute_command("TS.RANGE", f"{ticker}:volume", start_time, end_time)
+        response_list = [(datetime.fromtimestamp(e[0]), float(e[1])) for e in redis_response]
+        return response_list
+    except redis.ResponseError as error:
+        logging.debug(f'{error} ticker: {ticker}')
+
+
 def get_price(ticker: str, date: datetime) -> float:
     """
 
@@ -138,6 +155,21 @@ def get_price(ticker: str, date: datetime) -> float:
     price_res = get_prices(ticker, start_time, date)
     if price_res is not None and len(price_res) and len(price_res[-1]):
         return get_prices(ticker, start_time, date)[-1][-1]
+    else:
+        return 0
+
+
+def get_volume(ticker: str, date: datetime) -> float:
+    """
+
+    :param ticker:
+    :param date:
+    :return: price at the specified date
+    """
+    start_time = date - timedelta(weeks=1)
+    price_res = get_prices(ticker, start_time, date)
+    if price_res is not None and len(price_res) and len(price_res[-1]):
+        return get_volumes(ticker, start_time, date)[-1][-1]
     else:
         return 0
 

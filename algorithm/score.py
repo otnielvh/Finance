@@ -6,7 +6,7 @@ from algorithm.utils import Statements, Income, dict2income, dict2balance_sheet
 from operator import itemgetter
 from collections import namedtuple
 from algorithm.score_functions import average, avg_growth
-import loaddata
+from data.data_services import DataAccess
 
 ScoreEntry = namedtuple('Score', ['ticker', 'grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
                                   'netIncome', 'mktCap'])
@@ -136,8 +136,7 @@ class ScoreExample(BaseScore):
 # TODO: get years dynamically
 def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
                    statement: Statements = Statements.Income,) -> List[Income]:
-    # TODO: Remove access to DAL
-    resp = loaddata.get_ticker_data(ticker, from_year, to_year)
+    resp = DataAccess.get_ticker_data(ticker, from_year, to_year)
     fin_by_year = []
     for year in range(from_year, to_year):
         element = resp.get(str(year))

@@ -1,9 +1,12 @@
 import logging
 import time
 from typing import List, Dict
-from bs4 import BeautifulSoup
+
+import redis
+import requests
+from bs4 import BeautifulSoup, SoupStrainer
 from dateutil import parser
-from common import data_access
+from data import data_access
 
 ELEMENT_LIST = [
     # general
@@ -40,13 +43,16 @@ ELEMENT_LIST = [
     'us-gaap:liabilitiescurrent'
 ]
 
+SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
+TICKER_CIK_LIST_URL = 'https://www.sec.gov/include/ticker.txt'
+
 
 def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
-    """Extract from passed soup document all finanical data according to keywords list
+    """Extract from passed soup document all finanical data_assets according to keywords list
     Args:
         soup BeautifulSoup: The soup document holding the report to parse
         ticker int: The ticker of the company
-        year int: The year to fetch stocks data
+        year int: The year to fetch stocks data_assets
     Returns:
         None
     """
@@ -59,7 +65,7 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
     if report_date_focus is None:
         return []
 
-    # extract all the data according to the report focus date and the keywords
+    # extract all the data_assets according to the report focus date and the keywords
     filtered_list = []
     for key in keywords:
         element_list = soup.find_all(
@@ -72,7 +78,7 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
     element_dict = parse_element(soup, shares, False)
     filtered_list.append(element_dict)
 
-    # prepare the data for saving
+    # prepare the data_assets for saving
     data = {d.get('name'): d.get('value') for d in filtered_list}
     # TBD should this be save? We need to filter what is not interesting for us
     if not data:
@@ -80,7 +86,7 @@ def get_financial_data(soup: BeautifulSoup, ticker: str, year: int) -> None:
         logging.info(f'Data for {ticker}  {year} is empty')
 
     data_access.store_ticker_financials(ticker, year, data)
-    # redis_client.hset(utils.redis_key(ticker, year), mapping=data)
+    # redis_client.hset(utils.redis_key(ticker, year), mapping=data_assets)
     logging.info(
         f'successfully retrieved {ticker} {year} from sec')
     end = time.time()
@@ -109,9 +115,9 @@ def clean_value(string):
 
 def retrieve_from_context(soup, contextref):
     """
-    Used where an element of the document contained no dataload, only a
+    Used where an element of the document contained no data, only a
     reference to a context element.
-    Finds the relevant context element and retrieves the relevant dataload.
+    Finds the relevant context element and retrieves the relevant data.
 
     Returns a text string
 
@@ -219,7 +225,7 @@ def parse_element(soup: BeautifulSoup, element, check_is_sub_entity: bool = True
     element -- soup object of discovered tagged element
     """
 
-    # no context so we can't extract dataload
+    # no context so we can't extract data
     if "contextref" not in element.attrs:
         return ({})
 
@@ -244,7 +250,7 @@ def parse_element(soup: BeautifulSoup, element, check_is_sub_entity: bool = True
     element_dict['unit'] = retrieve_unit(soup, element)
     element_dict['date'] = retrieve_date(soup, element)
 
-    # If there's no value retrieved, try raiding the associated context dataload
+    # If there's no value retrieved, try raiding the associated context data
     if element_dict['value'] == "":
         element_dict['value'] = retrieve_from_context(
             soup, element.attrs['contextref'])
@@ -264,3 +270,126 @@ def parse_element(soup: BeautifulSoup, element, check_is_sub_entity: bool = True
         pass
 
     return element_dict
+
+def fetch_ticker_financials_by_year(year: int, ticker: str = None) -> None:
+    """Fetch ticker data according to the passed year and store to DB
+    Args:
+        year int: The year to fetch stocks data_assets
+        ticker str: if not None cache this ticker, otherwise cache all
+    Returns:
+        None
+    """
+    # check if the index exists
+    is_ixd_stored = data_access.is_index_stored(year)
+    if not is_ixd_stored:
+        logging.info(f"Index file for year {year} is not accessible, fetching from web")
+        for q in range(1, 5):  # 1 to 4 inclusive
+            _prepare_index(year, q)
+
+    if ticker:
+        ticker_cik = data_access.get_ticker_cik(ticker)
+        result = data_access.get_index_row_by_cik(ticker_cik, year)
+        if result is not None:
+            ticker_info_hash = {
+                'company_name': result[0],
+                f'txt_url:{year}': result[1]
+            }
+            data_access.store_ticker_info(ticker, ticker_info_hash)
+            fetch_company_data(ticker, year)
+            data_access.commit_ticker_data()
+        else:
+            logging.info(f'Could not fetch data for {ticker} for year {year}')
+    else:
+        idx = data_access.get_index_by_year(year)
+        for result in idx:
+            current_ticker = data_access.get_ticker_by_cik(result[2])
+            if result is not None:
+                ticker_info_hash = {
+                    'company_name': result[0],
+                    f'txt_url:{year}': result[1]
+                }
+                data_access.store_ticker_info(current_ticker, ticker_info_hash)
+                fetch_company_data(ticker, year)
+            else:
+                logging.info(f'Could not fetch data for {ticker} for year {year}')
+        data_access.commit_ticker_data()
+
+def fetch_company_data(ticker: str, year: int) -> None:
+    """Fetch the data_assets for the specified company and year from sec
+    Args:
+        ticker str: The ticker name
+        year int: The year
+    Returns:
+        None
+    """
+    txt_url = data_access.get_ticker_url(ticker, year)
+    if txt_url:
+        _fetch_company_data(ticker, year, txt_url)
+    else:
+        logging.info(f"Couldn't load data_assets for {ticker}:{year}")
+
+def _fetch_company_data(ticker: str, year: int, txt_url: str) -> None:
+    """Fetch the data_assets for the specified company and year from sec
+    Args:
+        ticker str: The ticker name
+        year int: The year
+        txt_url str: The url to fetch from the data_assets
+    Returns:
+        None
+    """
+    try:
+        if data_access.is_ticker_stored(ticker, year):
+            logging.info(
+                f'data_assets is already cached data_assets for {ticker} {year}"')
+            return
+    except redis.exceptions.ConnectionError:
+        logging.error("Redis isn't running")
+        raise ConnectionRefusedError("Redis isn't running")
+
+    if not txt_url:
+        return
+
+    to_get_html_site = f'{SEC_ARCHIVE_URL}/{txt_url}'
+    data = requests.get(to_get_html_site).content
+
+    xbrl_doc = SoupStrainer("xbrl")
+    soup = BeautifulSoup(data, 'lxml', parse_only=xbrl_doc)
+
+    if soup:
+        get_financial_data(soup, ticker, year)
+
+def _prepare_index(year: int, quarter: int) -> None:
+    """Prepare the edgar index for the passed year and quarter
+    The data_assets will be saved to DB
+    Args:
+        year int: The year to build the index for
+        quarter int: The quarter to build the index between 1-4
+    Returns:
+        None
+    """
+    filing = '|10-K|'
+    download = requests.get(f'{SEC_ARCHIVE_URL}/edgar/full-index/{year}/QTR{quarter}/master.idx').content
+    decoded = download.decode("ISO-8859-1").split('\n')
+
+    data_access.store_index(decoded, year, filing)
+    logging.info(f"Inserted year {year} qtr {quarter} to DB")
+
+
+def fetch_tickers_list() -> List[str]:
+    """Fetch a list of tickers from sec, and store them in the DB.
+    Skip if already in cache.
+    Returns:
+        a list of tickers
+    """
+    ticker_list = []
+    if not data_access.is_ticker_list_exist():
+        resp = requests.get(TICKER_CIK_LIST_URL)
+        ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
+        for entry in ticker_cik_list_lines:
+            ticker, cik = entry.strip().split()
+            ticker = ticker.strip()
+            cik = cik.strip()
+            data_access.store_ticker_cik_mapping(ticker, cik)
+            ticker_list.append(ticker)
+    logging.info(f'Successfully mapped tickers to cik')
+    return ticker_list

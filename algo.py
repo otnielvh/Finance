@@ -1,6 +1,6 @@
 from datetime import datetime
 from algorithm.score import ScoreExample
-from common.data_access import get_price
+from data.data_services import DataAccess
 from flask import Flask
 
 algo = Flask(__name__)
@@ -30,8 +30,8 @@ FINANCE_END_DATE = datetime(2018, 2, 1)
 
 
 def gain_from_buy_and_sell(ticker: str, start: datetime, end: datetime) -> float:
-    start_price = get_price(ticker, start)
-    end_price = get_price(ticker, end)
+    start_price = DataAccess.get_ticker_price(ticker, start)
+    end_price = DataAccess.get_ticker_price(ticker, end)
     if start_price:
         return end_price / start_price
     else:
@@ -42,7 +42,7 @@ def main():
     algo_score = ScoreExample(TICKER_LIST, FINANCE_START_DATE, FINANCE_END_DATE)
     algo_score.compute_score()
     return_str = ''
-    print("successfully retrieved dataload")
+    print("successfully retrieved data")
     column_spacing = '\t\t'
 
     # compare high score stocks to lows score stocks performance

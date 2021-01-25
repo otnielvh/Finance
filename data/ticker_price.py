@@ -1,5 +1,5 @@
 import yfinance as yf
-from common import data_access
+from data import data_access
 
 
 def store_ticker(ticker: str) -> None:
