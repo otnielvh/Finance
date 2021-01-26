@@ -2,33 +2,36 @@ import logging
 from typing import List, Tuple
 
 from datetime import datetime
-from data import sec_gov, ticker_price, data_access
+from data import ticker_price
+from data.sec_gov import SecGov
+from data.data_access import DataAccess
 
 
-class DataAccess:
+class DataServices:
 
     def __init__(self):
-        self.ticker_list = sec_gov.fetch_tickers_list()
+        self.sg = SecGov()
+        self.ticker_list = self.sg.fetch_tickers_list()
+        self.da = DataAccess()
 
-    @staticmethod
-    def get_ticker_price(ticker: str, date: datetime) -> float:
+    def get_ticker_price(self, ticker: str, date: datetime) -> float:
         """
         :param ticker:
         :param date:
         :return: price at the specified date
         """
-        return data_access.get_price(ticker, date)
+        return self.da.get_price(ticker, date)
 
-    @staticmethod
-    def get_ticker_volume(ticker: str, date: datetime) -> float:
+    def get_ticker_volume(self, ticker: str, date: datetime) -> float:
         """
         :param ticker:
         :param date:
         :return: price at the specified date
         """
-        return data_access.get_volume(ticker, date)
+        return self.da.get_volume(ticker, date)
 
-    def fetch_ticker_prices(self, ticker: str) -> None:
+    @staticmethod
+    def fetch_ticker_prices(ticker: str) -> None:
         """ Fetch the ticker prices and store them to DB
         :param ticker:
         :return: None
@@ -43,8 +46,7 @@ class DataAccess:
         """
         return self.ticker_list
 
-    @staticmethod
-    def get_ticker_data(ticker: str, start_year: int, end_year: int):
+    def get_ticker_data(self, ticker: str, start_year: int, end_year: int):
         """
         Could be called externally to get all data_assets known about that ticker.
         :param ticker:
@@ -54,26 +56,26 @@ class DataAccess:
         """
         data = {}
 
-        if not data_access.is_ticker_price_exists(ticker):
+        if not self.da.is_ticker_price_exists(ticker):
             ticker_price.store_ticker(ticker)
 
         data['volume'] = {'volume': 'NA'}
         # TODO: use more accurate dates
         start_year_datetime = datetime.fromisoformat(f'{start_year}-01-01')
         end_year_datetime = datetime.fromisoformat(f'{end_year}-12-30')
-        data['price'] = data_access.get_prices(ticker, start_year_datetime, end_year_datetime)
+        data['price'] = self.da.get_prices(ticker, start_year_datetime, end_year_datetime)
 
         for year in range(start_year, end_year + 1):
-            DataAccess.fetch_ticker_financials_by_year(year, ticker)
+            self.fetch_ticker_financials_by_year(year, ticker)
 
-            entry = data_access.get_ticker_financials(ticker, year)
+            entry = self.da.get_ticker_financials(ticker, year)
             if not entry:
                 logging.error(f"Could not retrieve data_assets for '{ticker} {year}' ")
             data[str(year)] = entry
 
         return data
 
-    def get_ticker_volumes(self, ticker: str, start: datetime, end: datetime=None) -> List[Tuple[datetime, float]]:
+    def get_ticker_volumes(self, ticker: str, start: datetime, end: datetime = None) -> List[Tuple[datetime, float]]:
         """
         :param ticker:
         :param start:
@@ -81,8 +83,7 @@ class DataAccess:
         :return: list of (datetime, volume) tuples
         """
 
-    @staticmethod
-    def fetch_ticker_financials_by_year(year: int, ticker: str = None) -> None:
+    def fetch_ticker_financials_by_year(self, year: int, ticker: str = None) -> None:
         """Fetch ticker financials data according to the passed year and store to DB
         Args:
             year int: The year to fetch stocks financials data
@@ -90,7 +91,7 @@ class DataAccess:
         Returns:
             None
         """
-        if ticker and data_access.is_ticker_stored(ticker, year):
+        if ticker and self.da.is_ticker_stored(ticker, year):
             logging.info(f'data_assets is already cached data_assets for {ticker} {year}')
             return
 
@@ -98,4 +99,4 @@ class DataAccess:
         if ticker in ['spy', 'qqq']:
             return
 
-        sec_gov.fetch_ticker_financials_by_year(year, ticker)
+        self.sg.fetch_ticker_financials_by_year(year, ticker)

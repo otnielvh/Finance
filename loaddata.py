@@ -1,7 +1,7 @@
 import argparse
 import logging
 import sys
-from data.data_services import DataAccess
+from data.data_services import DataServices
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
     year_start = args.yearStart
     year_end = args.yearEnd
 
-    ds = DataAccess()
+    ds = DataServices()
     ticker_list = ds.fetch_ticker_list()
     if args.ticker:
         ticker_list = [args.ticker]

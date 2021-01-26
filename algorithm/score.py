@@ -6,7 +6,7 @@ from algorithm.utils import Statements, Income, dict2income, dict2balance_sheet
 from operator import itemgetter
 from collections import namedtuple
 from algorithm.score_functions import average, avg_growth
-from data.data_services import DataAccess
+from data.data_services import DataServices
 
 ScoreEntry = namedtuple('Score', ['ticker', 'grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
                                   'netIncome', 'mktCap'])
@@ -19,6 +19,7 @@ class BaseScore:
         self.start_date = start_date
         self.end_date = end_date
         self.score_list = []
+        self.ds = DataServices()
 
     def filter_by_date(self, income_list: List[Income]) -> List[Income]:
         new_income_list: List[Income] = []
@@ -54,16 +55,36 @@ class BaseScore:
     def sort(self):
         self.score_list.sort()
 
+    # TODO: get years dynamically
+    def get_financials(self, ticker: str, from_year: int = 2016, to_year: int = 2019,
+                       statement: Statements = Statements.Income, ) -> List[Income]:
+        resp = self.ds.get_ticker_data(ticker, from_year, to_year)
+        fin_by_year = []
+        for year in range(from_year, to_year):
+            element = resp.get(str(year))
+            if element:
+                element['date'] = str(year)
+                fin_by_year.append(element)
+
+        financial_list = []
+
+        if statement == Statements.Income:
+            financial_list = [dict2income(d) for d in fin_by_year]
+        elif statement == Statements.BalanceSheet:
+            financial_list = [dict2balance_sheet(d) for d in fin_by_year]
+
+        return financial_list
+
     def process_ticker(self, ticker) -> ScoreEntry:
         financial_dict = {}
         try:
             for statement_type in [Statements.Income, Statements.BalanceSheet]:
-                data_by_year = get_financials(ticker, statement=statement_type)
+                data_by_year = self.get_financials(ticker, statement=statement_type)
                 data_until_today = self.filter_by_date(data_by_year)
                 financial_dict[statement_type] = data_until_today
 
             ticker_data = TickerData(
-                profile=get_financials(ticker, statement=Statements.Profile),
+                profile=self.get_financials(ticker, statement=Statements.Profile),
                 income_list=financial_dict[Statements.Income],
                 balance_sheet_list=financial_dict[Statements.BalanceSheet],
                 # cash_flow_list=financial_dict[Statements.CashFlow]
@@ -133,22 +154,3 @@ class ScoreExample(BaseScore):
         self.score_list = filtered_list
 
 
-# TODO: get years dynamically
-def get_financials(ticker: str, from_year: int = 2016, to_year: int = 2019,
-                   statement: Statements = Statements.Income,) -> List[Income]:
-    resp = DataAccess.get_ticker_data(ticker, from_year, to_year)
-    fin_by_year = []
-    for year in range(from_year, to_year):
-        element = resp.get(str(year))
-        if element:
-            element['date'] = str(year)
-            fin_by_year.append(element)
-
-    financial_list = []
-
-    if statement == Statements.Income:
-        financial_list = [dict2income(d) for d in fin_by_year]
-    elif statement == Statements.BalanceSheet:
-        financial_list = [dict2balance_sheet(d) for d in fin_by_year]
-
-    return financial_list
