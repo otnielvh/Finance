@@ -6,7 +6,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - $PWD/data/redis:/data
+      - $PWD/data_assets/redis:/data_assets
   mysql:
     container_name: fin_mysql
     image: mysql
@@ -16,8 +16,8 @@ services:
        - MYSQL_ROOT_PASSWORD=mysql
        - MYSQL_DATABASE=findb
     volumes:
-       - $PWD/data/mysql/data:/var/lib/mysql
-       - $PWD/data/mysql/init:/docker-entrypoint-initdb.d/:ro
+       - $PWD/data_assets/mysql/data:/var/lib/mysql
+       - $PWD/data_assets/mysql/init:/docker-entrypoint-initdb.d/:ro
   algo:
     container_name: fin_algo
     build: .

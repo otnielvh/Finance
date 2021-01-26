@@ -6,7 +6,7 @@ __pycache__/
 *.py[cod]
 venv
 *.idx
-data/mysql/data/**
+data_assets/mysql/data/**
 *.rdb
 
 
