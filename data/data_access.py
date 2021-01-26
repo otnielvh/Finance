@@ -92,6 +92,12 @@ class DataAccess:
         except redis.ResponseError as error:
             logging.debug(f'{error} ticker: {ticker}')
 
+    def is_ticker_volume_exists(self, ticker: str):
+        try:
+            return self.redis_client.exists(f'{ticker}:volume')
+        except redis.ResponseError as error:
+            logging.debug(f'{error} ticker: {ticker}')
+
     def is_ticker_price_exists(self, ticker: str):
         try:
             return self.redis_client.exists(f'{ticker}:price')

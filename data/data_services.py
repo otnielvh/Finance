@@ -11,8 +11,9 @@ class DataServices:
 
     def __init__(self):
         self.sg = SecGov()
-        self.ticker_list = self.sg.fetch_tickers_list()
         self.da = DataAccess()
+        if not self.da.is_ticker_list_exist():
+            self.sg.fetch_tickers_list()
 
     def get_ticker_price(self, ticker: str, date: datetime) -> float:
         """
@@ -20,6 +21,8 @@ class DataServices:
         :param date:
         :return: price at the specified date
         """
+        if not self.da.is_ticker_price_exists(ticker):
+            ticker_price.fetch_ticker_price_volume(ticker)
         return self.da.get_price(ticker, date)
 
     def get_ticker_volume(self, ticker: str, date: datetime) -> float:
@@ -28,6 +31,8 @@ class DataServices:
         :param date:
         :return: price at the specified date
         """
+        if not self.da.is_ticker_volume_exists(ticker):
+            ticker_price.fetch_ticker_price_volume(ticker)
         return self.da.get_volume(ticker, date)
 
     @staticmethod
@@ -36,7 +41,7 @@ class DataServices:
         :param ticker:
         :return: None
         """
-        ticker_price.store_ticker(ticker)
+        ticker_price.fetch_ticker_price_volume(ticker)
 
     def fetch_ticker_list(self) -> List[str]:
         """Fetch a list of tickers from sec, and store them in the DB.
@@ -44,7 +49,7 @@ class DataServices:
         Returns:
             a list of tickers
         """
-        return self.ticker_list
+        return self.da.get_ticker_list()
 
     def get_ticker_data(self, ticker: str, start_year: int, end_year: int):
         """
@@ -57,7 +62,7 @@ class DataServices:
         data = {}
 
         if not self.da.is_ticker_price_exists(ticker):
-            ticker_price.store_ticker(ticker)
+            ticker_price.fetch_ticker_price_volume(ticker)
 
         data['volume'] = {'volume': 'NA'}
         # TODO: use more accurate dates
@@ -91,12 +96,12 @@ class DataServices:
         Returns:
             None
         """
-        if ticker and self.da.is_ticker_stored(ticker, year):
-            logging.info(f'data_assets is already cached data_assets for {ticker} {year}')
-            return
-
         # TODO: skip in a better way. For now skip these ETFs manually
         if ticker in ['spy', 'qqq']:
             return
 
+        if self.da.is_ticker_stored(ticker, year):
+            logging.info(
+                f'data_assets is already cached data_assets for {ticker} {year}')
+            return
         self.sg.fetch_ticker_financials_by_year(year, ticker)

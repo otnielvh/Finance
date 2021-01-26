@@ -91,7 +91,6 @@ class SecGov:
             logging.info(f'Data for {ticker}  {year} is empty')
 
         self.da.store_ticker_financials(ticker, year, data)
-        # redis_client.hset(utils.redis_key(ticker, year), mapping=data_assets)
         logging.info(
             f'successfully retrieved {ticker} {year} from sec')
         end = time.time()
@@ -339,15 +338,6 @@ class SecGov:
         Returns:
             None
         """
-        try:
-            if self.da.is_ticker_stored(ticker, year):
-                logging.info(
-                    f'data_assets is already cached data_assets for {ticker} {year}"')
-                return
-        except redis.exceptions.ConnectionError:
-            logging.error("Redis isn't running")
-            raise ConnectionRefusedError("Redis isn't running")
-
         if not txt_url:
             return
 
@@ -376,7 +366,6 @@ class SecGov:
         self.da.store_index(decoded, year, filing)
         logging.info(f"Inserted year {year} qtr {quarter} to DB")
 
-
     def fetch_tickers_list(self) -> List[str]:
         """Fetch a list of tickers from sec, and store them in the DB.
         Skip if already in cache.
@@ -384,14 +373,13 @@ class SecGov:
             a list of tickers
         """
         ticker_list = []
-        if not self.da.is_ticker_list_exist():
-            resp = requests.get(self.TICKER_CIK_LIST_URL)
-            ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
-            for entry in ticker_cik_list_lines:
-                ticker, cik = entry.strip().split()
-                ticker = ticker.strip()
-                cik = cik.strip()
-                self.da.store_ticker_cik_mapping(ticker, cik)
-                ticker_list.append(ticker)
+        resp = requests.get(self.TICKER_CIK_LIST_URL)
+        ticker_cik_list_lines = resp.content.decode("utf-8").split('\n')
+        for entry in ticker_cik_list_lines:
+            ticker, cik = entry.strip().split()
+            ticker = ticker.strip()
+            cik = cik.strip()
+            self.da.store_ticker_cik_mapping(ticker, cik)
+            ticker_list.append(ticker)
         logging.info(f'Successfully mapped tickers to cik')
         return ticker_list
