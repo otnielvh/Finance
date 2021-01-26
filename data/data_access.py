@@ -40,7 +40,7 @@ class DataAccess:
         try:
             return self.redis_client.hgetall(f'{ticker}:{year}')
         except redis.ResponseError as error:
-            logging.debug(error)
+            logging.error(error)
 
     def is_ticker_stored(self, ticker: str, year: int):
         try:
