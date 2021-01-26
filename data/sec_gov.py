@@ -91,8 +91,7 @@ class SecGov:
             logging.info(f'Data for {ticker}  {year} is empty')
 
         self.da.store_ticker_financials(ticker, year, data)
-        logging.info(
-            f'successfully retrieved {ticker} {year} from sec')
+        logging.info(f'successfully stored {ticker} {year} from sec')
         end = time.time()
         logging.debug(f"elapsed time to parse: {(end - start)}")
 
