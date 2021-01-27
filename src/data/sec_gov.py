@@ -2,12 +2,11 @@ import logging
 import time
 from typing import List, Dict
 
-import redis
 import requests
 from bs4 import BeautifulSoup
 from bs4.element import SoupStrainer
 from dateutil import parser
-from data.data_access import DataAccess
+from src.data.data_access import DataAccess
 
 
 class SecGov:

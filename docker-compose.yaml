@@ -21,6 +21,9 @@ services:
   algo:
     container_name: fin_algo
     build: .
+    depends_on:
+       - mysql
+       - redis
     environment:
       - MYSQL_URL=fin_mysql
       - REDIS_URL=fin_redis

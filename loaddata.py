@@ -1,7 +1,7 @@
 import argparse
 import logging
 import sys
-from data.data_services import DataServices
+from src.data.data_services import DataServices
 
 
 def main():

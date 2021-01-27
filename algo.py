@@ -1,6 +1,6 @@
 from datetime import datetime
-from algorithm.score import ScoreExample
-from data.data_services import DataServices
+from src.algorithm.score import ScoreExample
+from src.data.data_services import DataServices
 from flask import Flask
 
 algo = Flask(__name__)
