@@ -1,5 +1,5 @@
 import yfinance as yf
-from data.data_access import DataAccess
+from src.data.data_access import DataAccess
 
 
 def fetch_ticker_price_volume(ticker: str) -> None:

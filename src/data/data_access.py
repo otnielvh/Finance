@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import List, Tuple
 
 import redis
-from common import config
+from src.common import config
 
 
 class DataAccess:

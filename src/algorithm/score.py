@@ -1,12 +1,12 @@
 import logging
-from algorithm.utils import TickerData
+from src.algorithm.utils import TickerData
 from typing import List
 from datetime import datetime
-from algorithm.utils import Statements, Income, dict2income, dict2balance_sheet
+from src.algorithm.utils import Statements, Income, dict2income, dict2balance_sheet
 from operator import itemgetter
 from collections import namedtuple
-from algorithm.score_functions import average, avg_growth
-from data.data_services import DataServices
+from src.algorithm.score_functions import average, avg_growth
+from src.data.data_services import DataServices
 
 ScoreEntry = namedtuple('Score', ['ticker', 'grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
                                   'netIncome', 'mktCap'])

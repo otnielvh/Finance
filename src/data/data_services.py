@@ -2,9 +2,9 @@ import logging
 from typing import List, Tuple
 
 from datetime import datetime
-from data import ticker_price
-from data.sec_gov import SecGov
-from data.data_access import DataAccess
+from src.data import ticker_price
+from src.data.sec_gov import SecGov
+from src.data.data_access import DataAccess
 
 
 class DataServices:
