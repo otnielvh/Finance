@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from src.algorithm.utils import TickerData
 from typing import List
 from datetime import datetime
@@ -8,8 +9,16 @@ from collections import namedtuple
 from src.algorithm.score_functions import average, avg_growth
 from src.data.data_services import DataServices
 
+
 ScoreEntry = namedtuple('Score', ['ticker', 'grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
                                   'netIncome', 'mktCap'])
+
+
+@dataclass
+class Filter:
+    name: str
+    min: float
+    max: float = 0.0
 
 
 class BaseScore:
@@ -27,10 +36,10 @@ class BaseScore:
             try:
                 new_income_list.append(income)
             except ValueError:
-                print(f'ValueError: could not parse {income.date}')
+                print(f'ValueError: could not parse {income.Date}')
         return new_income_list
 
-    def compute_score(self):
+    def compute_score(self, filter_params: List[Filter]):
         """
 
         :return: List where each row contains the ticker name and a scores (maybe more than 1)
@@ -43,13 +52,13 @@ class BaseScore:
             score_list.append(score)
 
         self.score_list: [ScoreEntry] = [score for score in score_list if score]
-        self.filter()
+        self.filter(filter_params)
         self.sort()
 
     def score(self, ticker: str, ticker_data: TickerData) -> ScoreEntry:
         raise Exception("Unimplemented exception")
 
-    def filter(self) -> None:
+    def filter(self, filter_params: List[Filter]) -> None:
         pass
 
     def sort(self):
@@ -103,6 +112,7 @@ class ScoreExample(BaseScore):
 
         :param ticker_data:
         :param ticker:
+        :param filter_list: a list of filters
         :return: a tuple
         """
         rnd_score = 0.0
@@ -141,16 +151,17 @@ class ScoreExample(BaseScore):
     def sort(self):
         self.score_list = sorted(self.score_list, key=itemgetter(1))
 
-    def filter(self):
+    def filter(self, filter_params: List[Filter]):
         filtered_list: [ScoreEntry] = []
         for score in self.score_list:
-            # if (1.25 < score.grossProfitGrowth < 1.5
-            #         and 0.25 < score.RnDRatio < 0.7):
-                # and 0.2 < score.RnDRatio < 0.7
-                # and 0.41 < score.cashPerDebt
-                # and 0 < score.netIncome
-            if 0 < score.RnDRatio:
+            if all_true(score, filter_params):
                 filtered_list.append(score)
         self.score_list = filtered_list
 
 
+def all_true(score: ScoreEntry, filter_params: List[Filter]):
+    for current_filter in filter_params:
+        value = getattr(score, current_filter.name)
+        if not current_filter.min < value < current_filter.max:
+            return False
+    return True
