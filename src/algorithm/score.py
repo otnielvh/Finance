@@ -9,9 +9,10 @@ from collections import namedtuple
 from src.algorithm.score_functions import average, avg_growth
 from src.data.data_services import DataServices
 
+SCORE_ENTRY_KEYS = ['grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
+                                  'netIncome', 'mktCap']
 
-ScoreEntry = namedtuple('Score', ['ticker', 'grossProfitGrowth', 'incomeGrowth', 'RnDRatio', 'cashPerDebt',
-                                  'netIncome', 'mktCap'])
+ScoreEntry = namedtuple('Score', ['ticker', *SCORE_ENTRY_KEYS])
 
 
 @dataclass

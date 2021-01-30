@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.algorithm.score import ScoreExample, Filter
+from src.algorithm.score import ScoreExample, Filter, SCORE_ENTRY_KEYS
 from src.data.data_services import DataServices
 from flask import Flask, request
 from src.algorithm.stock_list import LONG_TICKER_LIST
@@ -122,15 +122,15 @@ def calc_stats(score_list: List[Dict]) -> Dict:
     }
 
 
-@algo.route('/')
+@algo.route('/api/ticker-scores', methods=['GET'])
 def get_all_scores():
     is_short_list = request.args.get('short_list', '').lower() == 'true'
     score_list = get_scores([], is_short_list)
     return calc_stats(score_list)
 
 
-@algo.route('/filter', methods=['POST'])
-def post_test():
+@algo.route('/api/ticker-scores', methods=['POST'])
+def get_ticker_scores():
     data = request.json
     logging.info(f' Received request: POST /filter {data}')
     filter_params: List[Filter] = []
@@ -149,7 +149,12 @@ def post_test():
     return calc_stats(score_list)
 
 
+@algo.route('/api/filters', methods=['GET'])
+def get_filters():
+    return {'filters': SCORE_ENTRY_KEYS}
+
+
 if __name__ == "__main__":
-    filter_list = [Filter('RnDRatio', 0.6, 0.7),
-                   Filter('grossProfitGrowth', 1.3, 1.7)]
+    filter_list = [Filter('RnDRatio', 0.25, 0.7),
+                   Filter('grossProfitGrowth', 1.25, 1.7)]
     main(filter_list)
