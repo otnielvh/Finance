@@ -6,7 +6,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - $PWD/data_assets/redis:/data_assets
+      - $PWD/data_assets/redis:/data
   mysql:
     container_name: fin_mysql
     image: mysql
