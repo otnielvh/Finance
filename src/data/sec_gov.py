@@ -1,55 +1,76 @@
 import logging
 import time
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import requests
 from bs4 import BeautifulSoup
 from bs4.element import SoupStrainer
 from dateutil import parser
+from datetime import datetime
 from src.data.data_access import DataAccess
 
 
 class SecGov:
-    ELEMENT_LIST = [
-        # general
-        # 'us-gaap:CommonStockSharesOutstanding',
-        'dei:EntityCommonStockSharesOutstanding',
-
-        # income statement
-
-        # revenue
-        'us-gaap:salesrevenuenet',
-        'us-gaap:revenues',
-        'us-gaap:costofgoodssold',
-
-        # revenue
-        'us-gaap:costofrevenue',
-        'us-gaap:grossprofit',
-
-        # expense
-        'us-gaap:GeneralAndadministrativeExpense',
-        'us-gaap:sellinggeneralandadministrativeexpense',
-
-        'us-gaap:researchanddevelopmentexpense',
-
-        'us-gaap:operatingexpenses',
-        'us-gaap:operatingincomeloss',
-
-        # Balance sheet
-        'us-gaap:netincomeloss',
-
-        'us-gaap:noncurrentassets',
-
-        # Liabilities
-        'us-gaap:liabilities',
-        'us-gaap:liabilitiescurrent'
-    ]
+    ELEMENT_LIST = \
+    {
+        "Revenue" : [
+            'us-gaap:Revenues',
+            'us-gaap:SalesRevenueNet',
+        ],
+        "Costs" : [
+            'us-gaap:CostOfRevenue',
+            'us-gaap:CostOfGoodsSold',
+        ],
+        "GrossProfit" : [
+            'us-gaap:GrossProfit',
+        ],
+        "AdminExpenses" : [
+            # costs
+            'us-gaap:GeneralAndadministrativeExpense',
+            'us-gaap:SellingGeneralAndadministrativeExpense',
+        ],
+        "RndExpenses" : [
+            # costs
+            'us-gaap:ResearchAndDevelopmentExpense',
+        ],
+        "OperatingExpenses" : [
+            # costs
+            'us-gaap:OperatingExpenses',
+            'us-gaap:OperatingIncomeLoss',
+        ],
+        "NetIncome" : [
+            'us-gaap:netincomeloss',
+        ],
+        "Liabilities": [
+            'us-gaap:liabilities',
+            'us-gaap:liabilitiescurrent',
+        ],
+        "Assets": [
+            'us-gaap:assets',
+            'us-gaap:assetscurrent',
+        ]
+    }
 
     SEC_ARCHIVE_URL = 'https://www.sec.gov/Archives/'
     TICKER_CIK_LIST_URL = 'https://www.sec.gov/include/ticker.txt'
 
     def __init__(self):
-        self.da = DataAccess()
+        self.data_access = DataAccess()
+
+    def _get_data_by_key(self, soup: BeautifulSoup, keywords: [], doc_filter: str) -> Optional[Dict]:
+        """
+        @param soup:
+        @param keywords:
+        @param doc_filter:
+        @return:
+        """
+        for key in keywords:
+            element = soup.find(
+                str.lower(key), {"contextref": doc_filter})
+            if element:
+                element_dict = self.parse_element(soup, element)
+                if element_dict:
+                    return element_dict
 
     def get_financial_data(self, soup: BeautifulSoup, ticker: str, year: int) -> None:
         """Extract from passed soup document all finanical data_assets according to keywords list
@@ -61,26 +82,41 @@ class SecGov:
             None
         """
         start = time.time()
-        keywords = self.ELEMENT_LIST
+        element_list = self.ELEMENT_LIST
 
-        # get from the report the focus date of the report
+        # get from the report the focus date of the report and shares
         report_date_focus = soup.find("dei:documentfiscalperiodfocus")
-        shares = soup.find("dei:entitycommonstocksharesoutstanding")
+        shares = soup.find_all("dei:entitycommonstocksharesoutstanding")
         if report_date_focus is None:
             return
 
         # extract all the data_assets according to the report focus date and the keywords
         filtered_list = []
-        for key in keywords:
-            element_list = soup.find_all(
-                str.lower(key), {"contextref": report_date_focus['contextref']})
-            for element in element_list:
-                element_dict = self.parse_element(soup, element)
+        for key_name, keywords in element_list.items():
+            for key in keywords:
+                report_focus = report_date_focus['contextref']
+                element_dict = self._get_data_by_key(soup, keywords, report_focus)
                 if element_dict:
+                    element_dict['name'] = key_name
                     filtered_list.append(element_dict)
+                # TODO: check that this makes sense
+                else:
+                    report_focus = f"FI{report_date_focus['contextref'].strip('FDYT')}"
+                    element_dict = self._get_data_by_key(soup, keywords, report_focus)
+                    if element_dict:
+                        element_dict['name'] = key_name
+                        filtered_list.append(element_dict)
 
-        element_dict = self.parse_element(soup, shares, False)
-        filtered_list.append(element_dict)
+        # calculate total shares
+        total_shares = 0
+        for share in shares:
+            element_dict = self.parse_element(soup, share, False)
+            if element_dict:
+                total_shares += element_dict['value']
+        if len(shares) > 0:
+            element_dict['value'] = total_shares
+            element_dict['name'] = 'SharesOutstanding'
+            filtered_list.append(element_dict)
 
         # prepare the data_assets for saving
         data = {d.get('name'): d.get('value') for d in filtered_list}
@@ -89,7 +125,17 @@ class SecGov:
             data['None'] = 0
             logging.info(f'Data for {ticker}  {year} is empty')
 
-        self.da.store_ticker_financials(ticker, year, data)
+        # calculated fields
+        if 'Assets' in data and 'Liabilities' in data:
+            data['TotalEquityGross'] = data['Assets'] - data['Liabilities']
+
+        # make sure that we have prices stored
+        if 'SharesOutstanding' in data:
+            dt = datetime.strptime(element_dict['date'], '%Y-%m-%d')
+            ticker_price = self.data_access.get_price(ticker, dt)
+            data['MarketCap'] = data['SharesOutstanding'] * ticker_price
+
+        self.data_access.store_ticker_financials(ticker, year, data)
         logging.info(f'successfully stored {ticker} {year} from sec')
         end = time.time()
         logging.debug(f"elapsed time to parse: {(end - start)}")
@@ -133,7 +179,6 @@ class SecGov:
             contents = ""
         return contents
 
-
     def retrieve_unit(self, soup, each):
         """
         Gets the reporting unit by trying to chase a unitref to
@@ -170,7 +215,6 @@ class SecGov:
             except:
                 pass
         return element
-
 
     def retrieve_date(self, soup, each):
         """
@@ -213,7 +257,6 @@ class SecGov:
 
         return "NA"
 
-
     def parse_element(self, soup: BeautifulSoup, element, check_is_sub_entity: bool = True) -> Dict:
         """
         For a discovered XBRL tagged element, go through, retrieve its name
@@ -222,6 +265,7 @@ class SecGov:
         Keyword arguments:
         soup -- BeautifulSoup object of accounts document
         element -- soup object of discovered tagged element
+        @rtype: object
         """
 
         # no context so we can't extract data
@@ -233,7 +277,7 @@ class SecGov:
             isSubEntity = soup.find(
                 id=element.attrs['contextref']).find("xbrli:segment")
             if isSubEntity:
-                return ({})
+                return {}
 
         element_dict = {}
 
@@ -279,39 +323,39 @@ class SecGov:
             None
         """
         # check if the index exists
-        is_ixd_stored = self.da.is_index_stored(year)
+        is_ixd_stored = self.data_access.is_index_stored(year)
         if not is_ixd_stored:
             logging.info(f"Index file for year {year} is not accessible, fetching from web")
             for q in range(1, 5):  # 1 to 4 inclusive
                 self._prepare_index(year, q)
 
         if ticker:
-            ticker_cik = self.da.get_ticker_cik(ticker)
-            result = self.da.get_index_row_by_cik(ticker_cik, year)
+            ticker_cik = self.data_access.get_ticker_cik(ticker)
+            result = self.data_access.get_index_row_by_cik(ticker_cik, year)
             if result is not None:
                 ticker_info_hash = {
                     'company_name': result[0],
                     f'txt_url:{year}': result[1]
                 }
-                self.da.store_ticker_info(ticker, ticker_info_hash)
+                self.data_access.store_ticker_info(ticker, ticker_info_hash)
                 self.fetch_company_data(ticker, year)
-                self.da.commit_ticker_data()
+                self.data_access.commit_ticker_data()
             else:
                 logging.info(f'Could not fetch data for {ticker} for year {year}')
         else:
-            idx = self.da.get_index_by_year(year)
+            idx = self.data_access.get_index_by_year(year)
             for result in idx:
-                current_ticker = self.da.get_ticker_by_cik(result[2])
+                current_ticker = self.data_access.get_ticker_by_cik(result[2])
                 if result is not None:
                     ticker_info_hash = {
                         'company_name': result[0],
                         f'txt_url:{year}': result[1]
                     }
-                    self.da.store_ticker_info(current_ticker, ticker_info_hash)
+                    self.data_access.store_ticker_info(current_ticker, ticker_info_hash)
                     self.fetch_company_data(ticker, year)
                 else:
                     logging.info(f'Could not fetch data for {ticker} for year {year}')
-            self.da.commit_ticker_data()
+            self.data_access.commit_ticker_data()
 
     def fetch_company_data(self, ticker: str, year: int) -> None:
         """Fetch the data_assets for the specified company and year from sec
@@ -321,7 +365,7 @@ class SecGov:
         Returns:
             None
         """
-        txt_url = self.da.get_ticker_url(ticker, year)
+        txt_url = self.data_access.get_ticker_url(ticker, year)
         if txt_url:
             self._fetch_company_data(ticker, year, txt_url)
         else:
@@ -361,7 +405,7 @@ class SecGov:
         download = requests.get(f'{self.SEC_ARCHIVE_URL}/edgar/full-index/{year}/QTR{quarter}/master.idx').content
         decoded = download.decode("ISO-8859-1").split('\n')
 
-        self.da.store_index(decoded, year, filing)
+        self.data_access.store_index(decoded, year, filing)
         logging.info(f"Inserted year {year} qtr {quarter} to DB")
 
     def fetch_tickers_list(self) -> List[str]:
@@ -377,7 +421,7 @@ class SecGov:
             ticker, cik = entry.strip().split()
             ticker = ticker.strip()
             cik = cik.strip()
-            self.da.store_ticker_cik_mapping(ticker, cik)
+            self.data_access.store_ticker_cik_mapping(ticker, cik)
             ticker_list.append(ticker)
         logging.info(f'Successfully mapped tickers to cik')
         return ticker_list
