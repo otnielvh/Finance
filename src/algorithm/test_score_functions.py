@@ -9,7 +9,7 @@ def test_avg_growth_const():
     years = 5
     random_base = 27
     income_data_list = [
-        dict(date=start_year+i, grossprofit=random_base * (growth ** i))
+        dict(date=start_year+i, GrossProfit=random_base * (growth ** i))
         for i in range(years)
     ]
 
@@ -26,7 +26,7 @@ def test_avg_growth_variable():
     start_year = 2015
     years = len(acc_growth)
     income_data_list = [
-        dict(date=start_year+i, grossprofit=1 * (acc_growth[i]))
+        dict(date=start_year+i, GrossProfit=1 * (acc_growth[i]))
         for i in range(years)
     ]
 
