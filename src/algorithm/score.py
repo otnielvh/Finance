@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from src.algorithm.utils import TickerData
 from typing import List
 from datetime import datetime
-from src.algorithm.utils import Statements, Income, dict2income, dict2balance_sheet
+from src.algorithm.utils import Statements, Income, dict2income, dict2balance_sheet, dict2profile
 from operator import itemgetter
 from collections import namedtuple
 from src.algorithm.score_functions import average, avg_growth
@@ -82,6 +82,8 @@ class BaseScore:
             financial_list = [dict2income(d) for d in fin_by_year]
         elif statement == Statements.BalanceSheet:
             financial_list = [dict2balance_sheet(d) for d in fin_by_year]
+        elif statement == Statements.Profile:
+            financial_list = [dict2profile(d) for d in fin_by_year]
 
         return financial_list
 
@@ -139,14 +141,18 @@ class ScoreExample(BaseScore):
             except ZeroDivisionError as e:
                 print(f'{ticker!r} revenue is zero for {income_list[i].Date} -> {e}')
 
+        last_assets = ticker_data.balance_sheet_list[-1].TotalAssets
+        last_liabilities = ticker_data.balance_sheet_list[-1].TotalLiabilities
+
         return ScoreEntry(
             ticker=ticker,
             grossProfitGrowth=avg_growth(ticker, income_list, 'GrossProfit'),
             incomeGrowth=avg_growth(ticker, income_list, 'NetIncome'),
             RnDRatio=rnd_score / rnd_count if rnd_count else 0,
-            cashPerDebt=0,
+            cashPerDebt=(float(last_assets) / float(last_liabilities) if
+                         last_assets and last_liabilities else 0),
             netIncome=average(income_list, 'NetIncome'),
-            mktCap=0
+            mktCap=float(ticker_data.profile[-1].mktCap)
         )
 
     def sort(self):

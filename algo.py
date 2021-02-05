@@ -61,7 +61,7 @@ def get_scores(filter_params: List[Filter], short_list: bool = False) -> List:
 
 
 def main(filter_params: List[Filter]):
-    score_list = get_scores(filter_params)
+    score_list = get_scores(filter_params, short_list=True)
     if not score_list:
         print('No stocks match the filter')
         return

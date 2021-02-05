@@ -44,7 +44,7 @@ SUPPORTED_STOCK_EXCHANGES = ['NASDAQ Capital Market', 'NASDAQ Global Market', 'N
 
 def dict2profile(d: Dict) -> Profile:
     return Profile(
-        mktCap=d.get('mktCap'),
+        mktCap=d.get('MarketCap'),
         lastDiv=d.get('lastDiv'),
         country=d.get('country'),
         industry=d.get('industry'),
@@ -56,16 +56,17 @@ def dict2profile(d: Dict) -> Profile:
 def dict2income(d: Dict) -> Income:
     return Income(
         Date=d.get('date'),
-        Revenue=None,
+        Revenue=d.get('GrossProfit'),
         CostOfRevenue=None,
-        GrossProfit=d.get('grossprofit'),
-        RnDExpenses=d.get('researchanddevelopmentexpense'),
+        GrossProfit=d.get('GrossProfit'),
+        RnDExpenses=d.get('RndExpenses'),
         GAExpense=None,
-        SaMExpense=d.get('sellinggeneralandadministrativeexpense'),
-        OperatingExpenses=d.get('operatingexpenses'),
-        OperatingIncome=d.get('operatingincomeloss'),
+        SaMExpense=d.get('AdminExpenses'),
+        OperatingExpenses=d.get('OperatingExpenses'),
+        OperatingIncome=(float(d.get('GrossProfit')) - float(d.get('OperatingExpenses'))
+                         if d.get('GrossProfit') and d.get('OperatingExpenses') else 0),
         InterestExpense=None,
-        NetIncome=d.get('netincomeloss'),
+        NetIncome=d.get('NetIncome'),
         EBITDA=None,
         EBITratio=None
     )
@@ -84,11 +85,11 @@ def dict2balance_sheet(d: Dict) -> BalanceSheet:
         LongTermInvestments=d.get('longTermInvestments'),
         TaxAssets=d.get('taxAssets'),
         TotalNonCurrentAssets=d.get('totalNonCurrentAssets'),
-        TotalAssets=d.get('totalAssets'),
+        TotalAssets=d.get('Assets'),
         Payables=d.get('accountPayables'),
         ShortTermDebt=d.get('shortTermDebt'),
         # LongTermDebt=d.get('Long-term debt'),
-        TotalLiabilities=d.get('totalLiabilities'),
+        TotalLiabilities=d.get('Liabilities'),
         TotalDebt=d.get('totalDebt'),
         DeferredRevenue=d.get('deferredRevenue'),
         NetDebt=d.get('netDebt'),
