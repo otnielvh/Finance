@@ -1,12 +1,12 @@
 import './App.css';
-import TickerScoreList from './TickerList/tickerList';
+import SearchPage from "./SearchPage/SearchPage"
 
 function App() {
 
   return (
     <div className="App">
       <header className="App-header">
-          <TickerScoreList/>
+          <SearchPage/>
       </header>
     </div>
   );
