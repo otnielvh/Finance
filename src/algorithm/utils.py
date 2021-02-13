@@ -56,7 +56,7 @@ def dict2profile(d: Dict) -> Profile:
 def dict2income(d: Dict) -> Income:
     return Income(
         Date=d.get('date'),
-        Revenue=d.get('GrossProfit'),
+        Revenue=d.get('Revenue'),
         CostOfRevenue=None,
         GrossProfit=d.get('GrossProfit'),
         RnDExpenses=d.get('RndExpenses'),
