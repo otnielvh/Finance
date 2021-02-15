@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from bs4.element import SoupStrainer
 from dateutil import parser
 from datetime import datetime
+
 from src.data.data_access import DataAccess
 
 
@@ -19,6 +20,7 @@ class SecGov:
         ],
         "Costs" : [
             'us-gaap:CostOfRevenue',
+            'us-gaap:CostOfGoodsAndServicesSold',
             'us-gaap:CostOfGoodsSold',
         ],
         "GrossProfit" : [
@@ -73,7 +75,7 @@ class SecGov:
                     return element_dict
 
     def get_financial_data(self, soup: BeautifulSoup, ticker: str, year: int) -> None:
-        """Extract from passed soup document all finanical data_assets according to keywords list
+        """Extract from passed soup document all financial data_assets according to keywords list
         Args:
             soup BeautifulSoup: The soup document holding the report to parse
             ticker int: The ticker of the company
@@ -86,6 +88,7 @@ class SecGov:
 
         # get from the report the focus date of the report and shares
         report_date_focus = soup.find("dei:documentfiscalperiodfocus")
+        report_date = self.parse_element(soup, report_date_focus)
         shares = soup.find_all("dei:entitycommonstocksharesoutstanding")
         if report_date_focus is None:
             return
@@ -93,19 +96,18 @@ class SecGov:
         # extract all the data_assets according to the report focus date and the keywords
         filtered_list = []
         for key_name, keywords in element_list.items():
-            for key in keywords:
-                report_focus = report_date_focus['contextref']
+            report_focus = report_date_focus['contextref']
+            element_dict = self._get_data_by_key(soup, keywords, report_focus)
+            if element_dict:
+                element_dict['name'] = key_name
+                filtered_list.append(element_dict)
+            # TODO: check that this makes sense
+            else:
+                report_focus = f"FI{report_date_focus['contextref'].strip('FDYT')}"
                 element_dict = self._get_data_by_key(soup, keywords, report_focus)
                 if element_dict:
                     element_dict['name'] = key_name
                     filtered_list.append(element_dict)
-                # TODO: check that this makes sense
-                else:
-                    report_focus = f"FI{report_date_focus['contextref'].strip('FDYT')}"
-                    element_dict = self._get_data_by_key(soup, keywords, report_focus)
-                    if element_dict:
-                        element_dict['name'] = key_name
-                        filtered_list.append(element_dict)
 
         # calculate total shares
         total_shares = 0
@@ -134,6 +136,12 @@ class SecGov:
             dt = datetime.strptime(element_dict['date'], '%Y-%m-%d')
             ticker_price = self.data_access.get_price(ticker, dt)
             data['MarketCap'] = data['SharesOutstanding'] * ticker_price
+
+        # make sure we have GrossProfit
+        if 'GrossProfit' not in data:
+            data['GrossProfit'] = data['Revenue'] - data['Costs']
+
+        data['ReportFocus'] = report_date['date']
 
         self.data_access.store_ticker_financials(ticker, year, data)
         logging.info(f'successfully stored {ticker} {year} from sec')
