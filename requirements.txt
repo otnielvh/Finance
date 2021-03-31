@@ -6,7 +6,7 @@ redis==3.5.2
 requests==2.23.0
 urllib3==1.25.9
 beautifulsoup4==4.9.3
-lxml==4.6.2
+lxml==4.6.3
 yfinance==0.1.55
 python-dateutil==2.8.1
 PyMySQL~=1.0.2
