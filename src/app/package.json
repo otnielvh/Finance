@@ -14,7 +14,7 @@
     "axios": "^0.21.1",
     "axios-https-proxy-fix": "^0.17.1",
     "cors": "^2.8.5",
-    "immer": "^8.0.1",
+    "immer": "^9.0.6",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "react-scripts": "4.0.1",
